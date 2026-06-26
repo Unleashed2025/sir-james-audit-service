@@ -791,6 +791,24 @@ function parseCyber(rows) {
   let areaIdx = 0;
   let statusIdx = 7;
   let supplierIdx = -1;
+  const looksLikeStatusToken = (value) => {
+    const k = normKey(value);
+    if (!k) return false;
+    return (
+      k === "yes" ||
+      k === "no" ||
+      k === "n/a" ||
+      k === "na" ||
+      k === "unknown" ||
+      k === "multiple" ||
+      k.includes("partial") ||
+      k.includes("not ") ||
+      k.includes("not implemented") ||
+      k.includes("not configured") ||
+      k.includes("complete") ||
+      k.includes("in progress")
+    );
+  };
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i] || [];
@@ -822,8 +840,10 @@ function parseCyber(rows) {
     if (!areaText) continue;
     totalControls += 1;
     const area = areaText.toLowerCase();
-    const status = `${row[statusIdx] || ""}`.trim() || "Unknown";
+    let status = `${row[statusIdx] || ""}`.trim();
     const supplier = supplierIdx >= 0 ? `${row[supplierIdx] || ""}`.trim() : "";
+    if (!status && looksLikeStatusToken(supplier)) status = supplier;
+    if (!status) status = "Unknown";
     const stage = classifyCyberStatus(status);
     if (stage === "na") naCount += 1;
     if (stage === "complete") completeCount += 1;
@@ -1458,6 +1478,15 @@ function buildBrilliantBasicsRows(cyber, core, software) {
   const controls = cyber.controls || [];
   const features = core.featureItems || [];
   const softwareEntries = software.entries || [];
+  const controlToEvidence = (control) => {
+    const fromStatus = mapBasicsStatusLabel(control.status);
+    const fromSupplier = mapBasicsStatusLabel(control.supplier);
+    const resolved = fromStatus !== "Unknown" ? fromStatus : fromSupplier;
+    return {
+      status: resolved,
+      note: `${control.area}: status=${control.status || "Unknown"}, supplier=${control.supplier || "Unknown"}`,
+    };
+  };
 
   function capabilityFromEvidence(capability, evidenceItems, fallbackPrompt) {
     return {
@@ -1480,16 +1509,16 @@ function buildBrilliantBasicsRows(cyber, core, software) {
 
   const m365Evidence = [
     { status: mapBasicsStatusLabel(cyber.m365BackupStatus || "Unknown"), note: `Parsed field m365BackupStatus: ${cyber.m365BackupStatus || "Unknown"}` },
-    ...m365Controls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...m365Controls.map((control) => controlToEvidence(control)),
   ];
 
   const emailEvidence = [
     { status: mapBasicsStatusLabel(cyber.emailSecurityStatus || "Unknown"), note: `Parsed field emailSecurityStatus: ${cyber.emailSecurityStatus || "Unknown"}` },
-    ...emailControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...emailControls.map((control) => controlToEvidence(control)),
   ];
 
   const mfaEvidence = [
-    ...mfaControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...mfaControls.map((control) => controlToEvidence(control)),
     ...mfaFeatures.map((feature) => ({
       status: mapCoreFeatureStatus(feature),
       note: `${feature.featureName || feature.featureArea || "Core feature"}: Configured=${feature.configured || "Unknown"}, Usage=${feature.usage || "Unknown"}`,
@@ -1497,7 +1526,7 @@ function buildBrilliantBasicsRows(cyber, core, software) {
   ];
 
   const antivirusEvidence = [
-    ...antivirusControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...antivirusControls.map((control) => controlToEvidence(control)),
     ...antivirusSoftware.map((entry) => ({
       status: mapSoftwareEvidenceStatus(entry),
       note: `${entry.name}${entry.status ? `: ${entry.status}` : " (listed in software inventory)"}`,
@@ -1509,7 +1538,7 @@ function buildBrilliantBasicsRows(cyber, core, software) {
   ];
 
   const rmmEvidence = [
-    ...rmmControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...rmmControls.map((control) => controlToEvidence(control)),
     ...rmmSoftware.map((entry) => ({
       status: mapSoftwareEvidenceStatus(entry),
       note: `${entry.name}${entry.status ? `: ${entry.status}` : " (listed in software inventory)"}`,
