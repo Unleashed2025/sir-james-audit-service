@@ -2965,14 +2965,15 @@ function buildExportHtml(mode = "web") {
     body { font-family: Calibri, Arial, sans-serif; margin: 0; color: #1b1f24; background: ${isWord || isPdf ? "#ffffff" : "#eef2f7"}; }
     .page { margin: 0 auto; max-width: 1020px; padding: 18px 14px 32px; }
     .cover {
-      background: ${isWord ? "#0a3058" : "linear-gradient(150deg, #07213d, #0a3058 65%, #195085)"};
-      color: #fff;
+      background: ${isWord ? "#ffffff" : "linear-gradient(150deg, #07213d, #0a3058 65%, #195085)"};
+      color: ${isWord ? "#0b3159" : "#fff"};
       border-radius: 8px;
       padding: 36px 34px 30px;
       min-height: 380px;
       break-after: page;
       page-break-after: always;
       mso-page-break-after: always;
+      ${isWord ? "border: 1px solid #c7d6ea;" : ""}
     }
     .cover-brand {
       display: inline-flex;
@@ -2981,22 +2982,22 @@ function buildExportHtml(mode = "web") {
     }
     .cover-logo {
       display: block;
-      width: ${isWord ? "300px" : "460px"};
+      width: ${isWord ? "190px" : "460px"};
       height: auto;
       max-width: 100%;
     }
     .word-export .cover-brand {
-      background: #ffffff;
-      border-radius: 10px;
-      padding: 8px 12px;
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
     }
     .brand { font-size: 42px; font-weight: 700; letter-spacing: 1px; margin: 0; }
     .brand-sub { margin-top: 4px; color: #dbeafe; font-size: 15px; }
-    .cover-title { margin-top: 54px; font-size: ${isWord ? "38px" : "44px"}; line-height: 1.08; font-weight: 700; overflow-wrap: anywhere; }
-    .cover-school { margin-top: 8px; color: #7dd3fc; font-size: 30px; font-weight: 700; }
-    .cover-copy { margin-top: 20px; font-size: 18px; max-width: 820px; color: #dbeafe; }
-    .cover-focus { margin-top: 26px; font-size: 20px; font-weight: 700; }
-    .cover-focus-sub { margin-top: 6px; color: #93c5fd; }
+    .cover-title { margin-top: 54px; font-size: ${isWord ? "34px" : "44px"}; line-height: 1.08; font-weight: 700; overflow-wrap: anywhere; color: ${isWord ? "#0b3159" : "#ffffff"}; }
+    .cover-school { margin-top: 8px; color: ${isWord ? "#11406f" : "#7dd3fc"}; font-size: 30px; font-weight: 700; }
+    .cover-copy { margin-top: 20px; font-size: 18px; max-width: 820px; color: ${isWord ? "#1f4e7c" : "#dbeafe"}; }
+    .cover-focus { margin-top: 26px; font-size: 20px; font-weight: 700; color: ${isWord ? "#0b3159" : "#ffffff"}; }
+    .cover-focus-sub { margin-top: 6px; color: ${isWord ? "#1f4e7c" : "#93c5fd"}; }
 
     .meta-line { margin: 12px 2px 16px; color: #5a6f8b; font-size: 13px; }
     .chapter-page {
@@ -3084,6 +3085,7 @@ function buildExportHtml(mode = "web") {
       <div class="cover-focus">Audit focus</div>
       <div class="cover-focus-sub">Infrastructure • Cyber Security • Migration Readiness</div>
     </section>
+    ${isWord ? `<br class="word-page-break" clear="all" style="mso-special-character:line-break;page-break-before:always;">` : ""}
 
     <div class="meta-line">${escapeHtml(els.workbookMeta.textContent || "")} | Generated: ${new Date().toLocaleString()}</div>
 
