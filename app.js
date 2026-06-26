@@ -1828,6 +1828,9 @@ async function exportPdf() {
   const tenancyStatus = migration.remediation > 0 ? "Red" : "Amber";
   const coreStatus = core.configuredUnknown > 0 ? "Amber" : "Green";
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
+  const mfaBasic = getBasicRow("MFA / Conditional Access");
+  const rmmBasic = getBasicRow("RMM");
   const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1953,6 +1956,8 @@ async function exportPdf() {
         ["Cyber posture", cyberPct, `${cyber.incompleteCount} controls not complete; ${cyber.naCount} marked N/A.`, "Close N/A/incomplete controls with clear ownership and evidence."],
         ["Microsoft 365 backup", String(cyber.m365BackupStatus), "Interim controls may be required pre-tenancy migration.", "Confirm control ownership and delivery timeline."],
         ["Email security / Cloud backup", `${cyber.emailSecurityStatus} / ${cyber.cloudBackupStatus}`, "Cloud backup remains a critical resilience control.", "Prioritise cloud backup and email security assurance."],
+        ["MFA / Conditional Access", mfaBasic.status, mfaBasic.evidence, "Validate tenant-wide MFA/CA coverage and close gaps."],
+        ["RMM", rmmBasic.status, rmmBasic.evidence, "Confirm RMM coverage and standardise remote monitoring/remediation process."],
       ],
     },
     {
@@ -2179,6 +2184,7 @@ async function exportPdf() {
     let followOnY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 14 : y + 14;
 
     if (i === 0) {
+      followOnY += 8;
       if (followOnY > pageHeight - 120) {
         doc.addPage();
         followOnY = 44;
@@ -2296,6 +2302,9 @@ function buildExportHtml(mode = "web") {
     .join("");
 
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
+  const mfaBasic = getBasicRow("MFA / Conditional Access");
+  const rmmBasic = getBasicRow("RMM");
 
   const brilliantBasicsRowsHtml = brilliantBasicsRows
     .map((row) => `
@@ -2713,7 +2722,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Core application / A3</td><td>${coreStatus}</td><td>Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.</td></tr>
         </tbody>
       </table>
-      <h3>Unleashed Brilliant Basics</h3>
+      <h3 class="section-gap">Unleashed Brilliant Basics</h3>
       <table>
         <thead><tr><th>Control</th><th>Status</th><th>Evidence note</th></tr></thead>
         <tbody>${brilliantBasicsRowsHtml}</tbody>
@@ -2804,6 +2813,8 @@ function buildExportHtml(mode = "web") {
           <tr><td>Cyber posture</td><td>${cyberPct} complete</td><td>${cyber.incompleteCount} controls not complete; ${cyber.naCount} marked N/A.</td><td>Close N/A/incomplete controls with clear ownership and evidence.</td></tr>
           <tr><td>Microsoft 365 backup</td><td>${escapeHtml(cyber.m365BackupStatus)}</td><td>Interim controls may be required pre-tenancy migration.</td><td>Confirm control ownership and delivery timeline.</td></tr>
           <tr><td>Email security / Cloud backup</td><td>${escapeHtml(cyber.emailSecurityStatus)} / ${escapeHtml(cyber.cloudBackupStatus)}</td><td>Cloud backup remains a critical resilience control.</td><td>Prioritise cloud backup and email security assurance.</td></tr>
+          <tr><td>MFA / Conditional Access</td><td>${escapeHtml(mfaBasic.status)}</td><td>${escapeHtml(mfaBasic.evidence)}</td><td>Validate tenant-wide MFA/CA coverage and close gaps.</td></tr>
+          <tr><td>RMM</td><td>${escapeHtml(rmmBasic.status)}</td><td>${escapeHtml(rmmBasic.evidence)}</td><td>Confirm RMM coverage and standardise remote monitoring/remediation process.</td></tr>
         </tbody>
       </table>
       ${renderChapterExpansion(chapterModels.cyber)}
