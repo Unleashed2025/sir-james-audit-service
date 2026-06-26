@@ -2982,7 +2982,7 @@ function buildExportHtml(mode = "web") {
     }
     .cover-logo {
       display: block;
-      width: ${isWord ? "190px" : "460px"};
+      width: ${isWord ? "95px" : "460px"};
       height: auto;
       max-width: 100%;
     }
