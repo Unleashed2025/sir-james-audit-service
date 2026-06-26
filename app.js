@@ -1786,6 +1786,267 @@ function buildExportHtml(mode = "web") {
     `)
     .join("");
 
+  const sharedTopAssets = [
+    { asset: "Physical server estate", ageSupport: `${infra.totalServers} servers / ${infra.ws2012} legacy OS`, risk: infraStatus, path: "Retain only critical local workloads and migrate feasible services to SaaS/Azure." },
+    { asset: "Network switching", ageSupport: `Core ${network.core}, Edge ${network.edge}`, risk: networkStatus, path: "Phase core-first and edge refresh to support Wi-Fi 7 and modern uplinks." },
+    { asset: "Wireless platform", ageSupport: `${network.aps} APs with lifecycle pressure`, risk: networkStatus, path: "Prioritise high-density areas and align AP refresh with switching/PoE readiness." },
+    { asset: "Client compute", ageSupport: `${client.totalQuantity || dashboard.devices} devices / ${client.oldOsTotal} legacy OS`, risk: clientStatus, path: "Replace unsupported OS cohorts first and standardise endpoint policy control." },
+    { asset: "Cyber controls", ageSupport: `${cyberPct} complete / ${cyber.incompleteCount} incomplete`, risk: cyberStatus, path: "Close incomplete controls and evidence recovery/backup effectiveness." },
+  ];
+
+  function renderBulletList(items, fallback) {
+    const list = (items || []).filter((item) => String(item || "").trim() !== "");
+    if (!list.length) return `<ul><li>${escapeHtml(fallback)}</li></ul>`;
+    return `<ul>${list.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  }
+
+  function renderPriorityActionsTable(priorityActions) {
+    const actions = priorityActions || {};
+    const byPeriod = [
+      { label: "Now", items: actions.now || [] },
+      { label: "90 days", items: actions.d90 || [] },
+      { label: "12 months", items: actions.y12 || [] },
+    ];
+    return `
+      <table class="mini-table">
+        <thead><tr><th>Timeframe</th><th>Priority actions</th></tr></thead>
+        <tbody>
+          ${byPeriod.map((row) => `
+            <tr>
+              <td>${row.label}</td>
+              <td>${renderBulletList(row.items, "Define actions and owners for this period.")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function renderDependenciesOwnersTable(rows) {
+    const deps = (rows || []).filter((row) => row && (row.dependency || row.owner || row.reason));
+    const safe = deps.length ? deps : [{ dependency: "Dependency mapping pending", owner: "School IT + Trust Programme", reason: "Confirm operational and governance ownership." }];
+    return `
+      <table class="mini-table">
+        <thead><tr><th>Dependency</th><th>Owner</th><th>Why this matters</th></tr></thead>
+        <tbody>
+          ${safe.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.dependency || "-")}</td>
+              <td>${escapeHtml(row.owner || "-")}</td>
+              <td>${escapeHtml(row.reason || "-")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function renderTopAssetsTable(rows) {
+    const assets = (rows || []).slice(0, 5);
+    const safe = assets.length ? assets : [{ asset: "No top assets captured", ageSupport: "To be validated", risk: "Medium", path: "Confirm lifecycle and replacement path." }];
+    return `
+      <table class="mini-table">
+        <thead><tr><th>Asset / system</th><th>Age / support state</th><th>Risk</th><th>Replacement path</th></tr></thead>
+        <tbody>
+          ${safe.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.asset || "-")}</td>
+              <td>${escapeHtml(row.ageSupport || "-")}</td>
+              <td>${escapeHtml(row.risk || "-")}</td>
+              <td>${escapeHtml(row.path || "-")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function renderBeforeTargetTable(rows) {
+    const states = (rows || []);
+    const safe = states.length ? states : [{ area: "Current baseline", before: "Evidence pending", target: "Validated and approved target-state definition." }];
+    return `
+      <table class="mini-table">
+        <thead><tr><th>Area</th><th>Before</th><th>Target</th></tr></thead>
+        <tbody>
+          ${safe.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.area || "-")}</td>
+              <td>${escapeHtml(row.before || "-")}</td>
+              <td>${escapeHtml(row.target || "-")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function renderChapterExpansion(model) {
+    const m = model || {};
+    const effortBand = (m.costEffort && m.costEffort.band) ? m.costEffort.band : "Medium";
+    const effortWhy = (m.costEffort && m.costEffort.rationale) ? m.costEffort.rationale : "Cross-team coordination and evidence gathering are needed.";
+    return `
+      <div class="expansion-section">
+        <h3>Current State</h3>
+        ${renderBulletList(m.currentState, "Current-state evidence is still being finalised.")}
+
+        <h3>What This Means</h3>
+        <p class="narrative">${escapeHtml(m.whatThisMeans || "This area needs structured remediation and clearer ownership before it can be considered low risk.")}</p>
+
+        <h3>Priority Actions</h3>
+        ${renderPriorityActionsTable(m.priorityActions)}
+
+        <h3>Dependencies & Owners</h3>
+        ${renderDependenciesOwnersTable(m.dependencies)}
+
+        <h3>Risk if Delayed</h3>
+        <p class="narrative">${escapeHtml(m.riskIfDelayed || "Delays increase the chance of reactive incidents, migration slippage and governance exceptions.")}</p>
+
+        <h3>Cost / Effort Band</h3>
+        <p class="narrative"><strong>${escapeHtml(effortBand)}</strong> — ${escapeHtml(effortWhy)}</p>
+
+        <h3>Success Criteria</h3>
+        ${renderBulletList(m.successCriteria, "Named owners and dated actions are in place with measurable progress tracking.")}
+
+        <h3>Assumptions to Validate</h3>
+        ${renderBulletList(m.assumptions, "Source data, ownership and risk assumptions are confirmed with current evidence.")}
+
+        <h3>Top 5 assets / systems</h3>
+        ${renderTopAssetsTable(m.topAssets)}
+
+        <h3>Before vs Target state</h3>
+        ${renderBeforeTargetTable(m.beforeTarget)}
+      </div>
+    `;
+  }
+
+  const chapterModels = {
+    executive: {
+      currentState: [
+        `${infra.totalServers} server records with lifecycle pressure in core infrastructure.`,
+        `Cyber completion at ${cyberPct} with ${cyber.incompleteCount} controls requiring closure.`,
+        `Microsoft migration readiness currently ${msReadyPct} with ${migration.remediation} remediation actions.`,
+        `Client estate includes ${client.oldOsTotal} legacy OS devices requiring phased replacement.`,
+      ],
+      whatThisMeans: "Leadership can proceed with migration and refresh planning only where critical remediation is actively managed and evidenced.",
+      priorityActions: { now: ["Confirm governance owners for each critical risk.", "Publish remediation tracker and executive checkpoints."], d90: ["Close migration blockers and validate DR evidence."], y12: ["Complete lifecycle-led modernisation roadmap."] },
+      dependencies: [{ dependency: "Trust governance cadence", owner: "Trust IT + School SLT", reason: "Decision velocity and risk acceptance must be formalised." }],
+      riskIfDelayed: "Critical milestones may be missed, forcing reactive replacements and increasing disruption risk.",
+      costEffort: { band: "High", rationale: "Multiple workstreams span infrastructure, cyber, migration and end-user devices." },
+      successCriteria: ["Monthly reduction in remediation backlog.", "Migration go/no-go based on evidence, not assumptions."],
+      assumptions: ["Dashboard source metrics are current and validated.", "Named owners can commit delivery capacity."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Governance", before: "Reactive and assumption-led decision making.", target: "Evidence-led monthly governance with clear accountability." }, { area: "Migration readiness", before: `${msReadyPct} ready with open blockers.`, target: "Critical blockers closed and readiness sign-off completed." }],
+    },
+    rag: {
+      currentState: ["Data, network and tenancy readiness remain red/amber risk areas.", `Cyber remains ${cyberStatus} with incomplete control coverage.`, "Core application optimisation is still under-used."],
+      whatThisMeans: "The RAG profile indicates concentrated operational and migration risk that should drive prioritised investment and ownership.",
+      priorityActions: { now: ["Treat red items as board-tracked actions.", "Agree risk acceptance thresholds for amber items."], d90: ["Move red items to amber through evidence-backed remediation."], y12: ["Stabilise all high-risk domains into managed lifecycle state."] },
+      dependencies: [{ dependency: "Accurate tab-level inputs", owner: "Site IT + Audit owner", reason: "RAG quality depends on validated workbook data." }],
+      riskIfDelayed: "RAG status drifts from reality and leadership decisions may understate true risk.",
+      costEffort: { band: "Medium", rationale: "Primarily governance and remediation tracking effort with targeted technical changes." },
+      successCriteria: ["Red domains have dated mitigation plans.", "Amber domains have owners and evidence checkpoints."],
+      assumptions: ["RAG labels are interpreted consistently by stakeholders."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Risk visibility", before: "Static status snapshots.", target: "Live risk movement with owner-level accountability." }],
+    },
+    lifecycle: {
+      currentState: [`Warranty flags: ${endWarranty}.`, `End-of-support flags (critical): ${endSupport}.`, `End-of-service-life flags: ${endServiceLife}.`],
+      whatThisMeans: "Lifecycle planning must be linked to supportability risk, not just hardware age or break/fix history.",
+      priorityActions: { now: ["Validate support contracts and true lifecycle dates.", "Prioritise end-of-support assets for remediation."], d90: ["Agree extension vs replacement decisions."], y12: ["Embed rolling lifecycle governance and budget sequencing."] },
+      dependencies: [{ dependency: "Vendor lifecycle confirmation", owner: "IT Operations", reason: "Accurate support dates drive replacement priority." }],
+      riskIfDelayed: "Unsupported assets may fail without viable support paths, causing unplanned cost and outage risk.",
+      costEffort: { band: "Medium", rationale: "Assessment effort is moderate; replacement work can be high where scope is large." },
+      successCriteria: ["All critical support-end assets have approved treatment path.", "Lifecycle register is maintained as live control."],
+      assumptions: ["N/A lifecycle values are treated as risk until validated."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Lifecycle model", before: "Assumption-led expiry posture.", target: "Validated dates with approved extension/replacement decisions." }],
+    },
+    migration: {
+      currentState: [`Microsoft readiness currently ${msReadyPct}.`, `${migration.remediation} remediation-required migration checks remain open.`, `${migration.inProgress} actions are in progress and need owner follow-through.`],
+      whatThisMeans: "Cutover confidence depends on closing remediation items and validating dependencies across identity, mail, collaboration and apps.",
+      priorityActions: { now: ["Close remediation-required rows and confirm evidence.", "Validate DNS, mail flow and identity controls."], d90: ["Complete UAT and go/no-go decision pack."], y12: ["Transition to post-migration optimisation and decommission governance."] },
+      dependencies: [{ dependency: "Tenant admin exports and evidence pack", owner: "Migration lead", reason: "Readiness cannot be approved without complete evidence." }],
+      riskIfDelayed: "Migration timeline may slip or proceed with unresolved blockers, increasing operational risk.",
+      costEffort: { band: "High", rationale: "Cross-domain remediation and coordination with trust and school teams are required." },
+      successCriteria: ["All red remediation rows closed or approved by exception.", "Go/no-go decision completed with full evidence pack."],
+      assumptions: ["Source platform and dependency inventory remain accurate during delivery."],
+      topAssets: (migration.items || []).slice(0, 5).map((item) => ({ asset: item.area, ageSupport: item.status, risk: item.stage, path: item.action })),
+      beforeTarget: [{ area: "Readiness", before: `${msReadyPct} with unresolved remediation.`, target: "Critical actions closed and migration approval granted." }],
+    },
+    dataInfra: {
+      currentState: [`${infra.totalServers} records with ${infra.ws2012} legacy workloads.`, `${infra.serverCritical} immediate server candidates identified.`, `${infra.sanSwitchCount} SAN switches and ${infra.sanStorageCount} storage arrays require validation.`],
+      whatThisMeans: "Server and storage strategy should prioritise unsupported workloads and reduce local dependency where cloud alternatives are viable.",
+      priorityActions: { now: ["Remediate unsupported server OS workloads.", "Confirm SAN/storage support state and dependency mapping."], d90: ["Agree retain vs migrate vs replace decisions."], y12: ["Execute phased refresh only for services that must remain local."] },
+      dependencies: [{ dependency: "Application dependency map", owner: "Infrastructure lead", reason: "Determines which services can move off local compute." }],
+      riskIfDelayed: "Critical services may remain on unsupported platforms with weaker recovery confidence.",
+      costEffort: { band: "High", rationale: "Infrastructure remediation and workload migration can be capital and effort intensive." },
+      successCriteria: ["Unsupported workloads have approved migration/remediation path.", "Storage and backup dependencies are validated."],
+      assumptions: ["Host vs VM lifecycle interpretation remains consistent."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Server estate", before: "Mixed support state and legacy dependency.", target: "Supported core workloads with cloud-first reduction plan." }],
+    },
+    network: {
+      currentState: [`Core ${network.core} and edge ${network.edge} switching in mixed lifecycle state.`, `${network.aps} APs with Wi-Fi 7 readiness gap.`, `${network.firewalls} firewall records requiring support-path validation.`],
+      whatThisMeans: "Wi-Fi 7 readiness requires coordinated core, edge and AP modernization rather than isolated hardware swaps.",
+      priorityActions: { now: ["Validate network inventory and support status.", "Define core/edge/AP target architecture."], d90: ["Start high-priority edge and AP replacement waves."], y12: ["Deliver campus-wide Wi-Fi 7 aligned network posture."] },
+      dependencies: [{ dependency: "PoE and uplink design standards", owner: "Network lead", reason: "Switching design governs AP capability and performance." }],
+      riskIfDelayed: "Wireless performance and security posture may degrade while replacement cost and complexity increase.",
+      costEffort: { band: "High", rationale: "Campus network transformation involves significant hardware and implementation effort." },
+      successCriteria: ["Core and edge standards approved (10Gb core / 2.5Gb edge).", "Wi-Fi refresh aligned with switching dependencies."],
+      assumptions: ["AP and switch inventory reflects active estate and location accuracy."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Wireless capability", before: "Mixed Wi-Fi generation with lifecycle pressure.", target: "Planned Wi-Fi 7-capable architecture with aligned switching." }],
+    },
+    client: {
+      currentState: [`${client.windowsDevices} Windows devices with ${client.oldOsTotal} legacy OS cohort.`, `${client.chromebooks} Chromebooks with ${client.chromeExpired} expired lifecycle entries.`, `${client.tabletDevices} tablets requiring policy/lifecycle governance consistency.`],
+      whatThisMeans: "Client risk is driven by supportability and management maturity; unsupported OS devices should be prioritised for replacement.",
+      priorityActions: { now: ["Identify unsupported OS devices and replacement order.", "Validate ownership and management policy baselines."], d90: ["Reduce high-risk endpoint cohorts by planned refresh."], y12: ["Standardise endpoint governance across all device classes."] },
+      dependencies: [{ dependency: "Asset register accuracy", owner: "Endpoint lead", reason: "Replacement and policy decisions depend on trusted inventory." }],
+      riskIfDelayed: "Unsupported devices increase security and support overhead while reducing operational resilience.",
+      costEffort: { band: "Medium", rationale: "Effort is sustained and operationally heavy, with phased hardware spend." },
+      successCriteria: ["Legacy OS cohort reduced quarter-on-quarter.", "Policy and compliance baseline applied consistently."],
+      assumptions: ["Device ownership and usage context are correctly recorded."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Endpoint posture", before: "Mixed supportability and management maturity.", target: "Supported OS baseline with consistent policy enforcement." }],
+    },
+    cyber: {
+      currentState: [`Cyber controls complete: ${cyberPct}.`, `${cyber.incompleteCount} controls incomplete; ${cyber.naCount} marked N/A.`, `Email security status: ${cyber.emailSecurityStatus}; cloud backup status: ${cyber.cloudBackupStatus}.`],
+      whatThisMeans: "Control presence must be backed by evidence, testing and ownership to provide reliable resilience and assurance.",
+      priorityActions: { now: ["Close incomplete/N/A controls with named owners.", "Validate backup and DR evidence with test outcomes."], d90: ["Standardise control review cadence and reporting."], y12: ["Align cyber baseline with trust-wide assurance framework."] },
+      dependencies: [{ dependency: "Evidence collection discipline", owner: "Security lead", reason: "Assurance quality depends on repeatable evidence capture." }],
+      riskIfDelayed: "Incident response confidence remains low and recovery outcomes may not meet expectations.",
+      costEffort: { band: "Medium", rationale: "Mostly process and control hardening effort with targeted tooling adjustments." },
+      successCriteria: ["All critical controls evidenced and tested.", "Backup/DR controls verified against defined RTO/RPO."],
+      assumptions: ["Control status labels align with real operational state."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Assurance posture", before: "Tool-centric with partial evidence.", target: "Evidence-backed controls with tested recovery outcomes." }],
+    },
+    core: {
+      currentState: [`Current licence recorded as ${core.currentLicence}.`, `${core.configuredUnknown} configured capabilities have unclear usage evidence.`, `${core.featureRows} feature rows assessed in baseline review.`],
+      whatThisMeans: "Value realisation depends on proving usage for enabled capability and enabling priority features that are currently under-used.",
+      priorityActions: { now: ["Validate enabled features against actual usage.", "Prioritise high-value A3 capabilities for activation."], d90: ["Track adoption and governance outcomes by feature group."], y12: ["Decide licence uplift only after baseline optimisation evidence." ] },
+      dependencies: [{ dependency: "Tenant configuration evidence", owner: "M365 platform owner", reason: "Configuration and usage proof drives optimisation decisions." }],
+      riskIfDelayed: "Licence value remains under-realised and overlapping tooling costs persist.",
+      costEffort: { band: "Low", rationale: "Primarily configuration validation, governance and adoption enablement." },
+      successCriteria: ["Configured features have owner + usage evidence.", "Priority A3 opportunities moved to operational use."],
+      assumptions: ["Current licence and feature matrix remain accurate."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Licence value", before: "Enabled state not consistently evidenced.", target: "Usage-proven features and clear optimisation roadmap." }],
+    },
+    final: {
+      currentState: ["Phased actions defined across immediate, 90-day and 12-month horizons.", `Migration remediation open count: ${migration.remediation}.`, `Cyber incomplete control count: ${cyber.incompleteCount}.`],
+      whatThisMeans: "Execution success now depends on disciplined ownership, sequencing and evidence-driven governance rather than further discovery alone.",
+      priorityActions: { now: ["Confirm owners and deadlines for all immediate actions."], d90: ["Deliver roadmap checkpoints and variance reporting."], y12: ["Close strategic gaps and embed annual lifecycle governance."] },
+      dependencies: [{ dependency: "Programme governance and reporting cadence", owner: "Trust + School leadership", reason: "Sustained progress requires active oversight and decision-making." }],
+      riskIfDelayed: "Roadmap momentum reduces and unresolved risks carry forward into future audit cycles.",
+      costEffort: { band: "Medium", rationale: "Execution is primarily coordination-heavy with targeted technical delivery." },
+      successCriteria: ["Roadmap milestones achieved on planned cadence.", "Risk exposure reduced in each review cycle."],
+      assumptions: ["Resourcing remains available for planned remediation timeline."],
+      topAssets: sharedTopAssets,
+      beforeTarget: [{ area: "Delivery posture", before: "Action list without sustained governance rhythm.", target: "Managed programme with measurable milestone completion." }],
+    },
+  };
+
   const chapterPage = (n, title, content, isFirst = false) => `
     ${isWord && !isFirst ? `<br class="word-page-break" clear="all" style="mso-special-character:line-break;page-break-before:always;">` : ""}
     ${isWord && !isFirst ? `<div class="chapter-spacer"><span>Chapter break</span></div>` : ""}
@@ -1925,6 +2186,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Core application / A3</td><td>${coreStatus}</td><td>Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.executive)}
     `, true)}
 
     ${chapterPage(2, "RAG Summary", `
@@ -1940,6 +2202,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Core Application / A3</td><td>${coreStatus}</td><td>A3 optimisation and feature utilisation review remains open.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.rag)}
     `)}
 
     ${chapterPage(3, "Lifecycle and Critical Milestones", `
@@ -1953,6 +2216,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>End of service life</td><td>${endServiceLife}</td><td>Higher risk of reactive failure and diminishing support options.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.lifecycle)}
     `)}
 
     ${chapterPage(4, "Migration Readiness – Actions", `
@@ -1961,6 +2225,7 @@ function buildExportHtml(mode = "web") {
         <thead><tr><th>Area</th><th>Status</th><th>Main risk / gap</th><th>Immediate action</th></tr></thead>
         <tbody>${remediationRows || `<tr><td colspan="4">No open migration actions.</td></tr>`}</tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.migration)}
     `)}
 
     ${chapterPage(5, "Data Infrastructure – Servers, SAN and Storage", `
@@ -1973,6 +2238,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Virtual machines</td><td>${infra.virtual} virtual workloads</td><td>Guest OS risk is key (host lifecycle inherited from physical).</td><td>Treat unsupported VM OS as urgent remediation.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.dataInfra)}
     `)}
 
     ${chapterPage(6, "Network and Wi-Fi – Refresh Direction", `
@@ -1985,6 +2251,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Firewalls</td><td>${network.firewalls}</td><td>Supportability and replacement timing must be controlled.</td><td>Maintain supported edge security path.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.network)}
     `)}
 
     ${chapterPage(7, "Client Compute – Estate and Lifecycle", `
@@ -1997,6 +2264,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Tablet / Mac / other</td><td>${client.tabletDevices + client.macDevices + client.otherDevices}</td><td>Consistency and governance quality vary by device class.</td><td>Improve ownership, OS visibility and policy standards.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.client)}
     `)}
 
     ${chapterPage(8, "Cyber Security Findings", `
@@ -2009,6 +2277,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Email security / Cloud backup</td><td>${escapeHtml(cyber.emailSecurityStatus)} / ${escapeHtml(cyber.cloudBackupStatus)}</td><td>Cloud backup remains a critical resilience control.</td><td>Prioritise cloud backup and email security assurance.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.cyber)}
     `)}
 
     ${chapterPage(9, "Core Application and A3 Optimisation", `
@@ -2020,6 +2289,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Configured-but-usage-unknown</td><td>${core.configuredUnknown}</td><td>Potential missed value and governance gap.</td><td>Map enabled features to active operational use.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.core)}
     `)}
 
     ${chapterPage(10, "Final Recommendations by Workbook Tab", `
@@ -2033,6 +2303,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>6-12 months</td><td>Client compute</td><td>Reduce unsupported OS cohorts and lifecycle exception devices.</td><td>${client.oldOsTotal} old OS devices.</td></tr>
         </tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.final)}
     `)}
   </div>
 </body>
