@@ -1722,7 +1722,7 @@ function buildCostOptimisationRows(cyber) {
     { service: "Anti-virus", keywords: ["anti-virus", "antivirus", "endpoint protection", "defender", "sophos"], target: "A5 Defender P2 (primary) or Acronis where chosen trust-wide.", targetKeys: ["defender", "microsoft", "acronis"] },
     { service: "Email security", keywords: ["email security", "mail security", "defender for office", "barracuda"], target: "A5 Defender for Office (primary) with optional Acronis-aligned consolidation.", targetKeys: ["defender", "microsoft", "acronis"] },
     { service: "Microsoft 365 backup", keywords: ["365 backup", "m365 backup", "microsoft 365 backup", "office 365 backup"], target: "Consolidate to Acronis 365 backup service.", targetKeys: ["acronis"] },
-    { service: "Server backup", keywords: ["server backup", "veeam", "altaro"], target: "Consolidate to Acronis server backup service.", targetKeys: ["acronis"] },
+    { service: "Server backup", keywords: ["server backup", "local backup", "on-prem backup", "on prem backup", "veeam", "altaro"], target: "Consolidate to Acronis server backup service.", targetKeys: ["acronis"] },
     { service: "Cloud backup", keywords: ["cloud backup"], target: "Consolidate to Acronis cloud backup service.", targetKeys: ["acronis"] },
     { service: "ISPM", keywords: ["ispm", "security posture management"], target: "Consolidate to Acronis ISPM capability.", targetKeys: ["acronis"] },
     { service: "Security awareness training", keywords: ["sat", "security awareness", "awareness training"], target: "Consolidate to Acronis SAT capability.", targetKeys: ["acronis"] },
