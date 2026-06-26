@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audit Dashboard</title>
+  <title>Client Audit Service</title>
   <link rel="stylesheet" href="app.css">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div id="auth-gate" class="auth-gate">
     <div class="auth-card">
-      <h2>Protected Audit Service</h2>
+      <h2>Protected Client Audit Service</h2>
       <p>Enter the access password to upload the workbook and generate report outputs.</p>
       <label for="access-password">Password</label>
       <input id="access-password" type="password" autocomplete="current-password">
@@ -22,7 +22,7 @@
   <div id="app-shell" class="shell hidden">
     <header class="topbar card">
       <div>
-        <h1>Audit Dashboard</h1>
+        <h1>Client Audit Service</h1>
         <p>Upload an audit workbook and view board-level summary, risks, and sheet details.</p>
       </div>
       <div class="topbar-actions">
@@ -38,7 +38,7 @@
 
     <section id="home-view" class="card home-hero">
       <h2>Welcome</h2>
-      <p>Upload a school audit workbook to generate lifecycle, migration readiness, cyber, and roadmap insight in one board-ready dashboard.</p>
+      <p>Upload a client audit workbook to generate lifecycle, migration readiness, cyber, and roadmap insight in one board-ready dashboard.</p>
       <div class="home-hero-grid">
         <div class="home-chip"><strong>Board-ready outputs</strong><span>Executive risks, lifecycle status, and migration actions.</span></div>
         <div class="home-chip"><strong>Adaptive parsing</strong><span>New cyber/network rows are automatically detected.</span></div>
@@ -128,6 +128,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260627-0024"></script>
+  <script src="app.js?v=20260627-0033"></script>
 </body>
 </html>
