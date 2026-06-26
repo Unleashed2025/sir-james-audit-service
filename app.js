@@ -803,7 +803,8 @@ function parseMigration(rows) {
   }
 
   const header = headerIdx >= 0 ? (rows[headerIdx] || []) : [];
-  const blocks = detectMigrationBlocks(header);
+  const titleRow = headerIdx > 0 ? (rows[headerIdx - 1] || []) : [];
+  const blocks = detectMigrationBlocks(header, titleRow);
 
   const start = headerIdx >= 0 ? headerIdx + 1 : 0;
   for (let i = start; i < rows.length; i++) {
@@ -813,7 +814,7 @@ function parseMigration(rows) {
       const check = String(row[block.checkIdx] || "").trim();
       if (!area && !check) continue;
       const sourcePlatform = String(row[block.sourceIdx] || "").trim();
-      if (!isMicrosoftMigrationRow(area, check, sourcePlatform)) continue;
+      if (!isMicrosoftMigrationRow(area, check, sourcePlatform, block.kind)) continue;
 
       const rawStatus = String(row[block.statusIdx] || "").trim();
       if (!rawStatus) continue;
@@ -842,9 +843,9 @@ function parseMigration(rows) {
   return { total, ready, inProgress, remediation, items, remaining };
 }
 
-function detectMigrationBlocks(header) {
+function detectMigrationBlocks(header, titleRow = []) {
   if (!header || !header.length) {
-    return [{ areaIdx: 0, checkIdx: 1, sourceIdx: 2, statusIdx: 5, actionIdx: 8 }];
+    return [{ areaIdx: 0, checkIdx: 1, sourceIdx: 2, statusIdx: 5, actionIdx: 8, kind: "microsoft" }];
   }
 
   const keys = header.map((h) => normKey(h));
@@ -853,7 +854,7 @@ function detectMigrationBlocks(header) {
     if (keys[i] === "area") areaStarts.push(i);
   }
   if (!areaStarts.length) {
-    return [{ areaIdx: 0, checkIdx: 1, sourceIdx: 2, statusIdx: 5, actionIdx: 8 }];
+    return [{ areaIdx: 0, checkIdx: 1, sourceIdx: 2, statusIdx: 5, actionIdx: 8, kind: "microsoft" }];
   }
 
   const blocks = [];
@@ -866,6 +867,7 @@ function detectMigrationBlocks(header) {
       sourceIdx: Math.min(start + 2, Math.max(start, end - 1)),
       statusIdx: Math.min(start + 5, Math.max(start, end - 1)),
       actionIdx: Math.min(start + 8, Math.max(start, end - 1)),
+      kind: "other",
     };
 
     for (let i = start; i < end; i++) {
@@ -876,13 +878,17 @@ function detectMigrationBlocks(header) {
       if (key === "remediation required") block.actionIdx = i;
       else if (key.includes("action") || key.includes("recommendation")) block.actionIdx = i;
     }
+    const laneTitle = normKey(titleRow[start] || "");
+    if (laneTitle.includes("google")) block.kind = "google";
+    else if (laneTitle.includes("microsoft") || laneTitle.includes("office 365") || laneTitle.includes("m365")) block.kind = "microsoft";
+    else if (b === 0) block.kind = "microsoft";
     blocks.push(block);
   }
 
   return blocks;
 }
 
-function isMicrosoftMigrationRow(areaText, checkText, sourcePlatform = "") {
+function isMicrosoftMigrationRow(areaText, checkText, sourcePlatform = "", blockKind = "other") {
   const combined = `${areaText || ""} ${checkText || ""}`.toLowerCase();
   const source = String(sourcePlatform || "").toLowerCase();
   if (!combined.trim()) return false;
@@ -899,7 +905,7 @@ function isMicrosoftMigrationRow(areaText, checkText, sourcePlatform = "") {
     source.includes("workspace") ||
     source.includes("g suite") ||
     source.includes("chromebook");
-  if (hasGoogle || sourceIsGoogle) return false;
+  if (hasGoogle || sourceIsGoogle || blockKind === "google") return false;
 
   const hasMicrosoftSignal =
     combined.includes("microsoft") ||
@@ -923,6 +929,7 @@ function isMicrosoftMigrationRow(areaText, checkText, sourcePlatform = "") {
     source.includes("azure") ||
     source.includes("intune");
 
+  if (blockKind === "microsoft") return true;
   return sourceIsMicrosoft || hasMicrosoftSignal;
 }
 
@@ -954,8 +961,12 @@ function parseQuestions(rows) {
 }
 
 function renderKpis(dashboard, infra, network, client, cyber, migration, questions) {
-  const msReadyValue = migration.total > 0 ? `${((migration.ready / migration.total) * 100).toFixed(1)}%` : "-";
-  const msRemediationValue = migration.remediation;
+  const msReadyValue = migration.total > 0
+    ? `${((migration.ready / migration.total) * 100).toFixed(1)}%`
+    : (dashboard.msReadyPct !== "-" ? dashboard.msReadyPct : "-");
+  const msRemediationValue = migration.total > 0
+    ? migration.remediation
+    : (dashboard.msRemediation !== "-" ? dashboard.msRemediation : 0);
   const cyberPctFallback = cyber.totalControls > 0
     ? `${((cyber.completeCount / cyber.totalControls) * 100).toFixed(1)}%`
     : "-";
