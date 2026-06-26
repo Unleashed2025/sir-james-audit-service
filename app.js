@@ -194,6 +194,7 @@ function renderDashboard() {
   const cyberRows = getRows("Cyber Security");
   const migrationRows = getRows("Migration Readiness");
   const coreRows = getRows("Core Application");
+  const softwareRows = getRows("Software");
   const questionsRows = getRows("Questions to Confirm");
 
   const dashboard = parseDashboard(dashboardRows);
@@ -203,13 +204,14 @@ function renderDashboard() {
   const cyber = parseCyber(cyberRows);
   const migration = parseMigration(migrationRows);
   const core = parseCore(coreRows);
+  const software = parseSoftware(softwareRows);
   const questions = parseQuestions(questionsRows);
   const cyberPctFallback = cyber.totalControls > 0
     ? `${((cyber.completeCount / cyber.totalControls) * 100).toFixed(1)}%`
     : "-";
   const cyberPctValue = dashboard.cyberPct !== "-" ? dashboard.cyberPct : cyberPctFallback;
 
-  latestReport = { dashboard, infra, network, client, cyber, migration, core, questions };
+  latestReport = { dashboard, infra, network, client, cyber, migration, core, software, questions };
 
   renderKpis(dashboard, infra, network, client, cyber, migration, questions);
   renderRisks(infra, cyber, migration, client, core);
@@ -938,16 +940,80 @@ function parseCore(rows) {
   let inFeatureTable = false;
   let featureRows = 0;
   let configuredUnknown = 0;
+  const featureItems = [];
   for (const row of rows) {
     if (String(row[6] || "").toLowerCase() === "current licence") currentLicence = row[7] || "Unknown";
     if (row[0] === "Feature Area" && row[1] === "Feature / Capability") { inFeatureTable = true; continue; }
     if (!inFeatureTable || !row[0]) continue;
     featureRows += 1;
+    const featureArea = String(row[0] || "").trim();
+    const featureName = String(row[1] || "").trim();
+    const configuredRaw = String(row[7] || "").trim();
+    const usageRaw = String(row[9] || "").trim();
+    featureItems.push({
+      featureArea,
+      featureName,
+      configured: configuredRaw,
+      usage: usageRaw,
+    });
     const configured = String(row[7] || "").toLowerCase();
     const usage = String(row[9] || "").toLowerCase();
     if ((configured === "yes" || configured.includes("yes")) && usage.includes("assumed")) configuredUnknown += 1;
   }
-  return { currentLicence, featureRows, configuredUnknown };
+  return { currentLicence, featureRows, configuredUnknown, featureItems };
+}
+
+function parseSoftware(rows) {
+  if (!rows.length) return { entries: [] };
+
+  let headerIdx = -1;
+  let nameIdx = 0;
+  let statusIdx = -1;
+  let categoryIdx = -1;
+  let vendorIdx = -1;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const keys = row.map((cell) => normKey(cell));
+    const hasSoftwareHeader = keys.some((k) => k === "software" || k.includes("application") || k.includes("product") || k === "name");
+    if (!hasSoftwareHeader) continue;
+    headerIdx = i;
+    for (let c = 0; c < keys.length; c++) {
+      const key = keys[c];
+      if (key === "software" || key === "application" || key === "product" || key === "name" || key.includes("software name")) nameIdx = c;
+      if (key === "status" || key.includes("status") || key.includes("configured")) statusIdx = c;
+      if (key.includes("category") || key.includes("type")) categoryIdx = c;
+      if (key.includes("vendor") || key.includes("supplier")) vendorIdx = c;
+    }
+    break;
+  }
+
+  const start = headerIdx >= 0 ? headerIdx + 1 : 0;
+  const entries = [];
+  for (let i = start; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const cells = row.map((cell) => String(cell || "").trim());
+    if (!cells.some((cell) => cell !== "")) continue;
+
+    let name = String(row[nameIdx] || "").trim();
+    if (!name) {
+      const candidate = cells.find((cell) => cell);
+      name = candidate || "";
+    }
+    if (!name) continue;
+
+    const keyName = normKey(name);
+    if (keyName === "software" || keyName === "application" || keyName === "product") continue;
+
+    entries.push({
+      name,
+      status: statusIdx >= 0 ? String(row[statusIdx] || "").trim() : "",
+      category: categoryIdx >= 0 ? String(row[categoryIdx] || "").trim() : "",
+      vendor: vendorIdx >= 0 ? String(row[vendorIdx] || "").trim() : "",
+    });
+  }
+
+  return { entries };
 }
 
 function parseQuestions(rows) {
@@ -1224,6 +1290,151 @@ function classifyCyberStatus(statusText) {
   if (s === "no" || s.includes("missing") || s.includes("required")) return "incomplete";
   if (s === "yes" || s.includes("complete") || s.includes("implemented") || s.includes("configured")) return "complete";
   return "incomplete";
+}
+
+function mapBasicsStatusLabel(statusText) {
+  const s = normKey(statusText);
+  if (!s || s === "unknown" || s === "tbc" || s === "to be confirmed") return "Unknown";
+  if (s.includes("in progress") || s.includes("partial") || s.includes("partially") || s.includes("remediation")) return "Partial";
+  if (s === "n/a" || s === "na" || s === "no") return "Not In Place";
+  if (s.includes("not implemented") || s.includes("not complete") || s.includes("not configured") || s.includes("missing") || s.includes("required")) return "Not In Place";
+  if (s === "yes" || s.includes("complete") || s.includes("implemented") || s.includes("configured") || s.includes("enabled") || s.includes("active")) return "In Place";
+  return "Unknown";
+}
+
+function mapCoreFeatureStatus(feature) {
+  const configured = normKey(feature.configured);
+  const usage = normKey(feature.usage);
+  if (
+    (configured.includes("yes") || configured.includes("enabled") || configured.includes("configured") || configured.includes("implemented")) &&
+    (usage.includes("yes") || usage.includes("used") || usage.includes("active") || usage.includes("adopted") || usage.includes("complete"))
+  ) return "In Place";
+  if (configured.includes("yes") || configured.includes("enabled") || configured.includes("configured") || configured.includes("implemented")) return "Partial";
+  if (configured === "no" || configured.includes("not")) return "Not In Place";
+  if (usage.includes("partial") || usage.includes("in progress") || usage.includes("assumed")) return "Partial";
+  if (usage === "no" || usage.includes("not used")) return "Not In Place";
+  return "Unknown";
+}
+
+function mapSoftwareEvidenceStatus(entry) {
+  const fromStatus = mapBasicsStatusLabel(entry.status);
+  if (fromStatus !== "Unknown") return fromStatus;
+  return "Partial";
+}
+
+function aggregateBasicsLabels(labels) {
+  const clean = (labels || []).filter((label) => !!label);
+  if (!clean.length) return "Unknown";
+  if (clean.includes("In Place")) return "In Place";
+  if (clean.includes("Partial")) return "Partial";
+  if (clean.includes("Not In Place")) return "Not In Place";
+  return "Unknown";
+}
+
+function formatBasicsEvidence(evidenceItems, fallback) {
+  if (!evidenceItems.length) return fallback;
+  const preview = evidenceItems.slice(0, 2).map((item) => item.note).join(" | ");
+  const extra = evidenceItems.length > 2 ? ` (+${evidenceItems.length - 2} more)` : "";
+  return `${preview}${extra}`;
+}
+
+function findControlsByKeywords(controls, keywords) {
+  const keys = (keywords || []).map((k) => normKey(k)).filter((k) => k);
+  return (controls || []).filter((control) => {
+    const area = normKey(control.area);
+    return keys.some((key) => area.includes(key));
+  });
+}
+
+function findCoreFeaturesByKeywords(features, keywords) {
+  const keys = (keywords || []).map((k) => normKey(k)).filter((k) => k);
+  return (features || []).filter((feature) => {
+    const combined = normKey(`${feature.featureArea || ""} ${feature.featureName || ""}`);
+    return keys.some((key) => combined.includes(key));
+  });
+}
+
+function findSoftwareByKeywords(entries, keywords) {
+  const keys = (keywords || []).map((k) => normKey(k)).filter((k) => k);
+  return (entries || []).filter((entry) => {
+    const combined = normKey(`${entry.name || ""} ${entry.status || ""} ${entry.category || ""} ${entry.vendor || ""}`);
+    return keys.some((key) => combined.includes(key));
+  });
+}
+
+function buildBrilliantBasicsRows(cyber, core, software) {
+  const controls = cyber.controls || [];
+  const features = core.featureItems || [];
+  const softwareEntries = software.entries || [];
+
+  function capabilityFromEvidence(capability, evidenceItems, fallbackPrompt) {
+    return {
+      capability,
+      status: aggregateBasicsLabels(evidenceItems.map((item) => item.status)),
+      evidence: formatBasicsEvidence(evidenceItems, fallbackPrompt),
+    };
+  }
+
+  const m365Controls = findControlsByKeywords(controls, ["365 backup", "m365 backup", "microsoft 365 backup"]);
+  const emailControls = findControlsByKeywords(controls, ["email security"]);
+  const mfaControls = findControlsByKeywords(controls, ["mfa", "multi-factor", "multifactor", "conditional access"]);
+  const mfaFeatures = findCoreFeaturesByKeywords(features, ["mfa", "multi-factor", "multifactor", "conditional access", "entra"]);
+  const antivirusControls = findControlsByKeywords(controls, ["anti-virus", "antivirus", "endpoint protection", "defender", "sophos"]);
+  const antivirusSoftware = findSoftwareByKeywords(softwareEntries, ["anti-virus", "antivirus", "defender", "sophos", "endpoint protection", "edr"]);
+  const antivirusFeatures = findCoreFeaturesByKeywords(features, ["defender", "endpoint protection", "anti-virus", "antivirus", "edr"]);
+  const rmmControls = findControlsByKeywords(controls, ["rmm", "remote monitoring", "remote management", "remote monitoring and management"]);
+  const rmmSoftware = findSoftwareByKeywords(softwareEntries, ["rmm", "remote monitoring", "remote management", "remote monitoring and management"]);
+  const rmmFeatures = findCoreFeaturesByKeywords(features, ["rmm", "remote monitoring", "remote management"]);
+
+  const m365Evidence = [
+    { status: mapBasicsStatusLabel(cyber.m365BackupStatus || "Unknown"), note: `Parsed field m365BackupStatus: ${cyber.m365BackupStatus || "Unknown"}` },
+    ...m365Controls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+  ];
+
+  const emailEvidence = [
+    { status: mapBasicsStatusLabel(cyber.emailSecurityStatus || "Unknown"), note: `Parsed field emailSecurityStatus: ${cyber.emailSecurityStatus || "Unknown"}` },
+    ...emailControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+  ];
+
+  const mfaEvidence = [
+    ...mfaControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...mfaFeatures.map((feature) => ({
+      status: mapCoreFeatureStatus(feature),
+      note: `${feature.featureName || feature.featureArea || "Core feature"}: Configured=${feature.configured || "Unknown"}, Usage=${feature.usage || "Unknown"}`,
+    })),
+  ];
+
+  const antivirusEvidence = [
+    ...antivirusControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...antivirusSoftware.map((entry) => ({
+      status: mapSoftwareEvidenceStatus(entry),
+      note: `${entry.name}${entry.status ? `: ${entry.status}` : " (listed in software inventory)"}`,
+    })),
+    ...antivirusFeatures.map((feature) => ({
+      status: mapCoreFeatureStatus(feature),
+      note: `${feature.featureName || feature.featureArea || "Core feature"}: Configured=${feature.configured || "Unknown"}, Usage=${feature.usage || "Unknown"}`,
+    })),
+  ];
+
+  const rmmEvidence = [
+    ...rmmControls.map((control) => ({ status: mapBasicsStatusLabel(control.status), note: `${control.area}: ${control.status || "Unknown"}` })),
+    ...rmmSoftware.map((entry) => ({
+      status: mapSoftwareEvidenceStatus(entry),
+      note: `${entry.name}${entry.status ? `: ${entry.status}` : " (listed in software inventory)"}`,
+    })),
+    ...rmmFeatures.map((feature) => ({
+      status: mapCoreFeatureStatus(feature),
+      note: `${feature.featureName || feature.featureArea || "Core feature"}: Configured=${feature.configured || "Unknown"}, Usage=${feature.usage || "Unknown"}`,
+    })),
+  ];
+
+  return [
+    capabilityFromEvidence("Microsoft 365 backup", m365Evidence, "No explicit Microsoft 365 backup evidence found — validate in workbook."),
+    capabilityFromEvidence("Email security", emailEvidence, "No explicit email security evidence found — validate in workbook."),
+    capabilityFromEvidence("MFA / Conditional Access", mfaEvidence, "No explicit MFA / Conditional Access evidence found — validate in workbook."),
+    capabilityFromEvidence("Anti-virus", antivirusEvidence, "No explicit anti-virus evidence found — validate in workbook."),
+    capabilityFromEvidence("RMM", rmmEvidence, "No explicit RMM evidence found in parsed controls/software/core features — validate in workbook."),
+  ];
 }
 
 function createLifecycleStore() {
@@ -1531,6 +1742,7 @@ async function exportPdf() {
 
   const data = latestReport;
   const { infra, network, client, cyber, migration, core, dashboard } = data;
+  const software = data.software || { entries: [] };
   const lifecycle = mergeLifecycleStores([infra.lifecycle, network.lifecycle, client.lifecycle]);
   const endWarranty = (lifecycle.flagged.warranty || []).length;
   const endSupport = (lifecycle.flagged.support || []).length;
@@ -1545,6 +1757,7 @@ async function exportPdf() {
   const cyberStatus = cyber.incompleteCount > 0 ? "Amber / Red" : "Green";
   const tenancyStatus = migration.remediation > 0 ? "Red" : "Amber";
   const coreStatus = core.configuredUnknown > 0 ? "Amber" : "Green";
+  const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -1680,6 +1893,166 @@ async function exportPdf() {
     },
   ];
 
+  const pdfExpansionByChapter = {
+    4: {
+      currentState: [
+        `Microsoft readiness currently ${msReadyPct}.`,
+        `${migration.remediation} remediation-required migration checks remain open.`,
+        `${migration.inProgress} actions are in progress and need owner follow-through.`,
+      ],
+      whatThisMeans: "Cutover confidence depends on closing remediation items and validating dependencies across identity, mail, collaboration and applications.",
+      priorityActions: {
+        now: ["Close remediation-required rows and confirm evidence.", "Validate DNS, mail flow and identity controls."],
+        d90: ["Complete UAT and publish go/no-go decision pack."],
+        y12: ["Transition to post-migration optimisation and decommission governance."],
+      },
+    },
+    5: {
+      currentState: [
+        `${infra.totalServers} records with ${infra.ws2012} legacy workloads.`,
+        `${infra.serverCritical} immediate server candidates identified.`,
+        `${infra.sanSwitchCount} SAN switches and ${infra.sanStorageCount} storage arrays require validation.`,
+      ],
+      whatThisMeans: "Server and storage strategy should prioritise unsupported workloads and reduce local dependency where cloud alternatives are viable.",
+      priorityActions: {
+        now: ["Remediate unsupported server OS workloads.", "Confirm SAN/storage support state and dependency mapping."],
+        d90: ["Agree retain vs migrate vs replace decisions."],
+        y12: ["Execute phased refresh only for services that must remain local."],
+      },
+    },
+    6: {
+      currentState: [
+        `Core ${network.core} and edge ${network.edge} switching in mixed lifecycle state.`,
+        `${network.aps} APs with Wi-Fi 7 readiness gap.`,
+        `${network.firewalls} firewall records requiring support-path validation.`,
+      ],
+      whatThisMeans: "Wi-Fi 7 readiness requires coordinated core, edge and AP modernisation rather than isolated hardware swaps.",
+      priorityActions: {
+        now: ["Validate network inventory and support status.", "Define core/edge/AP target architecture."],
+        d90: ["Start high-priority edge and AP replacement waves."],
+        y12: ["Deliver campus-wide Wi-Fi 7 aligned network posture."],
+      },
+    },
+    7: {
+      currentState: [
+        `${client.windowsDevices} Windows devices with ${client.oldOsTotal} legacy OS cohort.`,
+        `${client.chromebooks} Chromebooks with ${client.chromeExpired} expired lifecycle entries.`,
+        `${client.tabletDevices} tablets requiring policy/lifecycle governance consistency.`,
+      ],
+      whatThisMeans: "Client risk is driven by supportability and management maturity; unsupported OS devices should be prioritised for replacement.",
+      priorityActions: {
+        now: ["Identify unsupported OS devices and replacement order.", "Validate ownership and management policy baselines."],
+        d90: ["Reduce high-risk endpoint cohorts by planned refresh."],
+        y12: ["Standardise endpoint governance across all device classes."],
+      },
+    },
+    8: {
+      currentState: [
+        `Cyber controls complete: ${cyberPct}.`,
+        `${cyber.incompleteCount} controls incomplete; ${cyber.naCount} marked N/A.`,
+        `Email security status: ${cyber.emailSecurityStatus}; cloud backup status: ${cyber.cloudBackupStatus}.`,
+      ],
+      whatThisMeans: "Control presence must be backed by evidence, testing and ownership to provide reliable resilience and assurance.",
+      priorityActions: {
+        now: ["Close incomplete/N/A controls with named owners.", "Validate backup and DR evidence with test outcomes."],
+        d90: ["Standardise control review cadence and reporting."],
+        y12: ["Align cyber baseline with trust-wide assurance framework."],
+      },
+    },
+    9: {
+      currentState: [
+        `Current licence recorded as ${core.currentLicence}.`,
+        `${core.configuredUnknown} configured capabilities have unclear usage evidence.`,
+        `${core.featureRows} feature rows assessed in baseline review.`,
+      ],
+      whatThisMeans: "Value realisation depends on proving usage for enabled capability and enabling priority features that are currently under-used.",
+      priorityActions: {
+        now: ["Validate enabled features against actual usage.", "Prioritise high-value A3 capabilities for activation."],
+        d90: ["Track adoption and governance outcomes by feature group."],
+        y12: ["Decide licence uplift only after baseline optimisation evidence."],
+      },
+    },
+    10: {
+      currentState: [
+        "Phased actions defined across immediate, 90-day and 12-month horizons.",
+        `Migration remediation open count: ${migration.remediation}.`,
+        `Cyber incomplete control count: ${cyber.incompleteCount}.`,
+      ],
+      whatThisMeans: "Execution success now depends on disciplined ownership, sequencing and evidence-driven governance rather than further discovery alone.",
+      priorityActions: {
+        now: ["Confirm owners and deadlines for all immediate actions."],
+        d90: ["Deliver roadmap checkpoints and variance reporting."],
+        y12: ["Close strategic gaps and embed annual lifecycle governance."],
+      },
+    },
+  };
+
+  function renderPdfExpansion(model, startY) {
+    if (!model) return startY;
+    let y = startY;
+    const bottomLimit = pageHeight - 42;
+    const ensureSpace = (required) => {
+      if (y + required > bottomLimit) {
+        doc.addPage();
+        y = 44;
+      }
+    };
+    const sectionHeading = (title) => {
+      ensureSpace(18);
+      doc.setTextColor(8, 35, 63);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(title, 40, y);
+      y += 14;
+    };
+    const sectionParagraph = (text) => {
+      const lines = doc.splitTextToSize(text, pageWidth - 88);
+      ensureSpace((lines.length * 12) + 6);
+      doc.setTextColor(36, 56, 79);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.text(lines, 48, y);
+      y += (lines.length * 12) + 4;
+    };
+    const sectionBullets = (items, fallback) => {
+      const list = (items || []).length ? items : [fallback];
+      for (const item of list) {
+        const bulletLines = doc.splitTextToSize(`• ${item}`, pageWidth - 96);
+        ensureSpace((bulletLines.length * 12) + 2);
+        doc.setTextColor(36, 56, 79);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10.5);
+        doc.text(bulletLines, 48, y);
+        y += (bulletLines.length * 12) + 2;
+      }
+    };
+
+    sectionHeading("Current State");
+    sectionBullets(model.currentState, "Current-state evidence is still being finalised.");
+    sectionHeading("What This Means");
+    sectionParagraph(model.whatThisMeans || "This area needs structured remediation and clearer ownership before it can be considered low risk.");
+    sectionHeading("Priority Actions");
+
+    const actions = model.priorityActions || {};
+    const actionRows = [
+      ["Now", (actions.now && actions.now.length) ? actions.now.join("\n• ") : "Define actions and owners for this period."],
+      ["90 days", (actions.d90 && actions.d90.length) ? actions.d90.join("\n• ") : "Define actions and owners for this period."],
+      ["12 months", (actions.y12 && actions.y12.length) ? actions.y12.join("\n• ") : "Define actions and owners for this period."],
+    ];
+    ensureSpace(42);
+    doc.autoTable({
+      head: [["Timeframe", "Priority actions"]],
+      body: actionRows,
+      startY: y,
+      margin: { left: 28, right: 28 },
+      styles: { font: "helvetica", fontSize: 9.5, cellPadding: 5, lineColor: [212, 219, 230], lineWidth: 0.6, textColor: [27, 31, 36], overflow: "linebreak" },
+      headStyles: { fillColor: [22, 56, 93], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [238, 243, 249] },
+      theme: "grid",
+    });
+    return (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 10 : y + 10;
+  }
+
   for (let i = 0; i < chapters.length; i++) {
     const ch = chapters[i];
     doc.addPage();
@@ -1716,6 +2089,36 @@ async function exportPdf() {
       alternateRowStyles: { fillColor: [238, 243, 249] },
       theme: "grid",
     });
+
+    let followOnY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 14 : y + 14;
+
+    if (i === 0) {
+      if (followOnY > pageHeight - 120) {
+        doc.addPage();
+        followOnY = 44;
+      }
+      doc.setTextColor(8, 35, 63);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Unleashed Brilliant Basics", 40, followOnY);
+      const basicsBody = brilliantBasicsRows.map((row) => [row.capability, row.status, row.evidence]);
+      doc.autoTable({
+        head: [["Control", "Status", "Evidence note"]],
+        body: basicsBody,
+        startY: followOnY + 8,
+        margin: { left: 28, right: 28 },
+        styles: { font: "helvetica", fontSize: 9.5, cellPadding: 5, lineColor: [212, 219, 230], lineWidth: 0.6, textColor: [27, 31, 36], overflow: "linebreak" },
+        headStyles: { fillColor: [22, 56, 93], textColor: [255, 255, 255], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [238, 243, 249] },
+        theme: "grid",
+      });
+      followOnY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 10 : followOnY + 10;
+    }
+
+    if (i >= 3) {
+      const expansionModel = pdfExpansionByChapter[i + 1];
+      followOnY = renderPdfExpansion(expansionModel, followOnY);
+    }
   }
 
   doc.save("audit-dashboard-export.pdf");
@@ -1757,6 +2160,7 @@ function buildExportHtml(mode = "web") {
   const isPdf = mode === "pdf";
 
   const { infra, network, client, cyber, migration, core, dashboard } = data;
+  const software = data.software || { entries: [] };
   const lifecycle = mergeLifecycleStores([infra.lifecycle, network.lifecycle, client.lifecycle]);
   const endWarranty = (lifecycle.flagged.warranty || []).length;
   const endSupport = (lifecycle.flagged.support || []).length;
@@ -1786,87 +2190,7 @@ function buildExportHtml(mode = "web") {
     `)
     .join("");
 
-  function mapBasicsStatusLabel(statusText) {
-    const s = normKey(statusText);
-    if (!s || s === "unknown" || s === "tbc" || s === "to be confirmed") return "Unknown";
-    if (s.includes("in progress") || s.includes("partial") || s.includes("partially") || s.includes("remediation")) return "Partial";
-    if (s === "n/a" || s === "na" || s === "no") return "Not In Place";
-    if (s.includes("not implemented") || s.includes("not complete") || s.includes("not configured") || s.includes("missing") || s.includes("required")) return "Not In Place";
-    if (s === "yes" || s.includes("complete") || s.includes("implemented") || s.includes("configured") || s.includes("enabled")) return "In Place";
-    return "Unknown";
-  }
-
-  function findCyberControlsByKeywords(keywords) {
-    const keys = (keywords || []).map((k) => normKey(k)).filter((k) => k);
-    return (cyber.controls || []).filter((control) => {
-      const area = normKey(control.area);
-      return keys.some((key) => area.includes(key));
-    });
-  }
-
-  function aggregateBasicsStatus(controls) {
-    if (!controls.length) return "Unknown";
-    const labels = controls.map((control) => mapBasicsStatusLabel(control.status));
-    const hasInPlace = labels.includes("In Place");
-    const hasPartial = labels.includes("Partial");
-    const hasNot = labels.includes("Not In Place");
-    const hasUnknown = labels.includes("Unknown");
-    if (hasInPlace && !hasPartial && !hasNot && !hasUnknown) return "In Place";
-    if (hasNot && !hasInPlace && !hasPartial && !hasUnknown) return "Not In Place";
-    if (hasUnknown && !hasInPlace && !hasPartial && !hasNot) return "Unknown";
-    return "Partial";
-  }
-
-  function buildControlEvidence(controls) {
-    if (!controls.length) return "No matching control found in parsed cyber controls — validate in workbook.";
-    const preview = controls
-      .slice(0, 2)
-      .map((control) => `${control.area}: ${control.status || "Unknown"}`)
-      .join(" | ");
-    const extra = controls.length > 2 ? ` (+${controls.length - 2} more)` : "";
-    return `${preview}${extra}`;
-  }
-
-  const m365BackupControls = findCyberControlsByKeywords(["365 backup", "m365 backup", "microsoft 365 backup"]);
-  const emailSecurityControls = findCyberControlsByKeywords(["email security"]);
-  const mfaCaControls = findCyberControlsByKeywords(["mfa", "multi-factor", "multifactor", "conditional access"]);
-  const antiVirusControls = findCyberControlsByKeywords(["anti-virus", "antivirus", "endpoint protection", "defender", "sophos"]);
-  const rmmControls = findCyberControlsByKeywords(["rmm", "remote monitoring", "remote management"]);
-
-  const m365StatusRaw = cyber.m365BackupStatus || "Unknown";
-  const emailStatusRaw = cyber.emailSecurityStatus || "Unknown";
-
-  const brilliantBasicsRows = [
-    {
-      capability: "Microsoft 365 backup",
-      status: mapBasicsStatusLabel(m365StatusRaw),
-      evidence: m365BackupControls.length
-        ? buildControlEvidence(m365BackupControls)
-        : `Parsed field m365BackupStatus: ${m365StatusRaw}. No matching control row found — validate in workbook.`,
-    },
-    {
-      capability: "Email security",
-      status: mapBasicsStatusLabel(emailStatusRaw),
-      evidence: emailSecurityControls.length
-        ? buildControlEvidence(emailSecurityControls)
-        : `Parsed field emailSecurityStatus: ${emailStatusRaw}. No matching control row found — validate in workbook.`,
-    },
-    {
-      capability: "MFA / Conditional Access",
-      status: aggregateBasicsStatus(mfaCaControls),
-      evidence: buildControlEvidence(mfaCaControls),
-    },
-    {
-      capability: "Anti-virus",
-      status: aggregateBasicsStatus(antiVirusControls),
-      evidence: buildControlEvidence(antiVirusControls),
-    },
-    {
-      capability: "RMM",
-      status: aggregateBasicsStatus(rmmControls),
-      evidence: buildControlEvidence(rmmControls),
-    },
-  ];
+  const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
 
   const brilliantBasicsRowsHtml = brilliantBasicsRows
     .map((row) => `
