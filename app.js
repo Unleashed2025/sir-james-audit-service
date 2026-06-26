@@ -37,8 +37,16 @@ let latestReport = null;
 const ACCESS_STATE_KEY = "audit-service-unlocked";
 const ACCESS_HASH_HEX = "cff2083f7f003ef5b8db6b8c8b43abaf68188c6ed1ea02d5d6b477f789d06ab0";
 
+els.fileInput.addEventListener("click", () => {
+  els.fileInput.value = "";
+});
 els.fileInput.addEventListener("change", onUpload);
-if (els.homeUpload) els.homeUpload.addEventListener("click", () => els.fileInput.click());
+if (els.homeUpload) {
+  els.homeUpload.addEventListener("click", () => {
+    els.fileInput.value = "";
+    els.fileInput.click();
+  });
+}
 els.sheetSelect.addEventListener("change", renderSheetTable);
 els.exportWeb.addEventListener("click", exportWeb);
 els.exportWord.addEventListener("click", exportWord);
@@ -92,7 +100,10 @@ async function onUpload(event) {
   workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
   showDashboardView();
   els.status.textContent = "Workbook loaded.";
-  els.workbookMeta.textContent = `${file.name} | Sheets: ${workbook.SheetNames.length}`;
+  const modifiedAt = file.lastModified ? new Date(file.lastModified).toLocaleString() : "Unknown";
+  const loadedAt = new Date().toLocaleString();
+  const sizeKb = Math.max(1, Math.round(file.size / 1024));
+  els.workbookMeta.textContent = `${file.name} | ${sizeKb} KB | Modified: ${modifiedAt} | Loaded: ${loadedAt} | Sheets: ${workbook.SheetNames.length}`;
   if (els.reportLink) els.reportLink.textContent = "";
   els.exportWeb.disabled = false;
   els.exportWord.disabled = false;
@@ -101,6 +112,7 @@ async function onUpload(event) {
   renderDashboard();
   populateSheetSelect();
   renderSheetTable();
+  event.target.value = "";
 }
 
 function showDashboardView() {
@@ -778,7 +790,7 @@ function parseMigration(rows) {
   let total = 0, ready = 0, inProgress = 0, remediation = 0;
   const items = [];
   let headerIdx = -1;
-  let areaIdx = 0, checkIdx = 1, statusIdx = 5, actionIdx = 6;
+  let areaIdx = 0, checkIdx = 1, sourceIdx = 2, statusIdx = 5, actionIdx = 6;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -796,6 +808,7 @@ function parseMigration(rows) {
       const key = normKey(header[i]);
       if (key === "area") areaIdx = i;
       if (key === "check") checkIdx = i;
+      if (key === "source platform" || key.includes("source platform")) sourceIdx = i;
       if (key.includes("status") || key.includes("readiness")) statusIdx = i;
       if (
         key.includes("action") ||
@@ -812,10 +825,12 @@ function parseMigration(rows) {
     const area = String(row[areaIdx] || "").trim();
     const check = String(row[checkIdx] || "").trim();
     if (!area && !check) continue;
-    if (!isMicrosoftMigrationRow(area, check)) continue;
-    total += 1;
+    const sourcePlatform = String(row[sourceIdx] || "").trim();
+    if (!isMicrosoftMigrationRow(area, check, sourcePlatform)) continue;
 
     const rawStatus = String(row[statusIdx] || "").trim();
+    if (!rawStatus) continue;
+    total += 1;
     const stage = getMigrationStage(rawStatus);
     const action = String(row[actionIdx] || "").trim();
     items.push({
@@ -835,8 +850,9 @@ function parseMigration(rows) {
   return { total, ready, inProgress, remediation, items, remaining };
 }
 
-function isMicrosoftMigrationRow(areaText, checkText) {
+function isMicrosoftMigrationRow(areaText, checkText, sourcePlatform = "") {
   const combined = `${areaText || ""} ${checkText || ""}`.toLowerCase();
+  const source = String(sourcePlatform || "").toLowerCase();
   if (!combined.trim()) return false;
 
   const hasGoogle =
@@ -845,7 +861,13 @@ function isMicrosoftMigrationRow(areaText, checkText) {
     combined.includes("google workspace") ||
     combined.includes("g suite") ||
     combined.includes("chromebook");
-  if (hasGoogle) return false;
+  const sourceIsGoogle =
+    source.includes("google") ||
+    source.includes("gmail") ||
+    source.includes("workspace") ||
+    source.includes("g suite") ||
+    source.includes("chromebook");
+  if (hasGoogle || sourceIsGoogle) return false;
 
   const hasMicrosoftSignal =
     combined.includes("microsoft") ||
@@ -861,10 +883,15 @@ function isMicrosoftMigrationRow(areaText, checkText) {
     combined.includes("windows") ||
     combined.includes("active directory") ||
     combined.includes("ad ");
+  const sourceIsMicrosoft =
+    source.includes("microsoft") ||
+    source.includes("office 365") ||
+    source.includes("m365") ||
+    source.includes("entra") ||
+    source.includes("azure") ||
+    source.includes("intune");
 
-  // If neither side is explicitly labelled, keep the row by default for backwards-compatible templates.
-  // Explicit Google-labelled rows are always excluded above.
-  return hasMicrosoftSignal || !hasGoogle;
+  return sourceIsMicrosoft || hasMicrosoftSignal;
 }
 
 function parseCore(rows) {
