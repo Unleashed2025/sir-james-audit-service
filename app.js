@@ -1807,12 +1807,17 @@ async function exportPdf() {
   const tenancyStatus = migration.remediation > 0 ? "Red" : "Amber";
   const coreStatus = core.configuredUnknown > 0 ? "Amber" : "Green";
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
   doc.setFillColor(10, 48, 88);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
+  const pdfLogoDataUrl = await loadImageAsDataUrl(logoWhiteUrl);
+  if (pdfLogoDataUrl) {
+    doc.addImage(pdfLogoDataUrl, "PNG", 40, 28, 260, 54);
+  }
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(34);
@@ -2181,6 +2186,22 @@ async function ensurePdfLibrariesLoaded() {
   await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js", "jspdf-autotable-lib");
 }
 
+async function loadImageAsDataUrl(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return "";
+    const blob = await response.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result || ""));
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(blob);
+    });
+  } catch (_) {
+    return "";
+  }
+}
+
 function loadScriptOnce(src, id) {
   return new Promise((resolve, reject) => {
     const existing = document.getElementById(id);
@@ -2220,6 +2241,9 @@ function buildExportHtml(mode = "web") {
   const cyberPctFallback = cyber.totalControls > 0 ? `${((cyber.completeCount / cyber.totalControls) * 100).toFixed(1)}%` : "-";
   const cyberPct = dashboard.cyberPct !== "-" ? dashboard.cyberPct : cyberPctFallback;
   const thankYouLine = "Thank you for undertaking the Unleashed site audit and readiness assessment.";
+  const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
+  const logoBlueUrl = new URL("assets/unleashed-logo-blue.png", window.location.href).href;
+  const coverLogoUrl = isWord ? logoBlueUrl : logoWhiteUrl;
 
   const infraStatus = (infra.ws2012 > 0 || infra.serverCritical > 0) ? "Red" : "Amber";
   const networkStatus = (network.apsOutOfWarranty + network.switchesOutOfWarranty + network.firewallsOutOfWarranty) > 0 ? "Red" : "Amber";
@@ -2534,6 +2558,22 @@ function buildExportHtml(mode = "web") {
       page-break-after: always;
       mso-page-break-after: always;
     }
+    .cover-brand {
+      display: inline-flex;
+      align-items: center;
+      max-width: 760px;
+    }
+    .cover-logo {
+      display: block;
+      width: ${isWord ? "440px" : "460px"};
+      height: auto;
+      max-width: 100%;
+    }
+    .word-export .cover-brand {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
     .brand { font-size: 42px; font-weight: 700; letter-spacing: 1px; margin: 0; }
     .brand-sub { margin-top: 4px; color: #dbeafe; font-size: 15px; }
     .cover-title { margin-top: 54px; font-size: ${isWord ? "38px" : "44px"}; line-height: 1.08; font-weight: 700; overflow-wrap: anywhere; }
@@ -2621,8 +2661,7 @@ function buildExportHtml(mode = "web") {
 <body class="${isWord ? "word-export" : (isPdf ? "pdf-export" : "web-export")}">
   <div class="page">
     <section class="cover">
-      <h1 class="brand">UNLEASHED</h1>
-      <div class="brand-sub">Cyber Security & Managed IT</div>
+      <div class="cover-brand"><img class="cover-logo" src="${escapeAttr(coverLogoUrl)}" alt="Unleashed"></div>
       <div class="cover-title">IT Audit Summary, Findings and Roadmap</div>
       <div class="cover-school">Sir James Smith's School</div>
       <div class="cover-copy">${escapeHtml(thankYouLine)} This report provides a structured narrative of the current estate, key risks, decisions required and the recommended remediation roadmap.</div>
