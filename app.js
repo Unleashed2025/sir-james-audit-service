@@ -2078,8 +2078,10 @@ async function exportPdf() {
 
     sectionHeading("Current State");
     sectionBullets(model.currentState, "Current-state evidence is still being finalised.");
+    y += 8;
     sectionHeading("What This Means");
     sectionParagraph(model.whatThisMeans || "This area needs structured remediation and clearer ownership before it can be considered low risk.");
+    y += 8;
     sectionHeading("Priority Actions");
 
     const actions = model.priorityActions || {};
@@ -2364,8 +2366,10 @@ function buildExportHtml(mode = "web") {
     return `
       <div class="expansion-section">
         ${sections.map((section) => `
-          <h3>${section.title}</h3>
-          ${section.content}
+          <div class="expansion-block">
+            <h3>${section.title}</h3>
+            ${section.content}
+          </div>
         `).join("")}
       </div>
     `;
@@ -2601,6 +2605,8 @@ function buildExportHtml(mode = "web") {
     h3 { margin: 14px 0 8px; color: #08233F; font-size: 22px; }
     p { margin: 8px 0; line-height: 1.42; }
     .narrative { color: #24384f; }
+    .expansion-block { margin-bottom: 14px; }
+    .expansion-block:last-child { margin-bottom: 0; }
 
     table { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: ${isWord ? "auto" : "fixed"}; ${isWord ? "" : "box-shadow: 0 2px 8px rgba(8,35,63,0.08);"} }
     th, td { border: 1px solid #d4dbe6; padding: 8px; text-align: left; vertical-align: top; }
