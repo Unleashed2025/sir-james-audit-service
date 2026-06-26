@@ -2205,16 +2205,9 @@ async function exportPdf() {
     },
     {
       title: "Cyber Security Findings",
-      intro: "Cyber remediation should prioritise controls marked incomplete or N/A, with cloud backup and documented recovery assurance treated as immediate resilience requirements.",
+      intro: "Cyber findings are shown dynamically from the Cyber Security sheet so all current controls are represented without duplication.",
       head: ["Cyber area", "Position", "Main concern", "Recommended response"],
-      body: [
-        ["Cyber posture", cyberPct, `${cyber.incompleteCount} controls not complete; ${cyber.naCount} marked N/A.`, "Close N/A/incomplete controls with clear ownership and evidence."],
-        ["Microsoft 365 backup", String(cyber.m365BackupStatus), "Interim controls may be required pre-tenancy migration.", "Confirm control ownership and delivery timeline."],
-        ["Email security / Cloud backup", `${cyber.emailSecurityStatus} / ${cyber.cloudBackupStatus}`, "Cloud backup remains a critical resilience control.", "Prioritise cloud backup and email security assurance."],
-        ["MFA / Conditional Access", mfaBasic.status, mfaBasic.evidence, "Validate tenant-wide MFA/CA coverage and close gaps."],
-        ["RMM", rmmBasic.status, rmmBasic.evidence, "Confirm RMM coverage and standardise remote monitoring/remediation process."],
-        ...dynamicCyberRows.map((row) => [row.area, row.status, row.concern, row.recommendation]),
-      ],
+      body: dynamicCyberRows.map((row) => [row.area, row.status, row.concern, row.recommendation]),
     },
     {
       title: "Core Application and A3 Optimisation",
@@ -3151,18 +3144,7 @@ function buildExportHtml(mode = "web") {
     `)}
 
     ${chapterPage(8, "Cyber Security Findings", `
-      <p class="narrative">Cyber posture should be measured by evidenced control effectiveness, not only tooling presence. Controls marked N/A or incomplete should be prioritised for remediation and ownership.</p>
-      <table>
-        <thead><tr><th>Cyber area</th><th>Position</th><th>Main concern</th><th>Recommended response</th></tr></thead>
-        <tbody>
-          <tr><td>Cyber posture</td><td>${cyberPct} complete</td><td>${cyber.incompleteCount} controls not complete; ${cyber.naCount} marked N/A.</td><td>Close N/A/incomplete controls with clear ownership and evidence.</td></tr>
-          <tr><td>Microsoft 365 backup</td><td>${escapeHtml(cyber.m365BackupStatus)}</td><td>Interim controls may be required pre-tenancy migration.</td><td>Confirm control ownership and delivery timeline.</td></tr>
-          <tr><td>Email security / Cloud backup</td><td>${escapeHtml(cyber.emailSecurityStatus)} / ${escapeHtml(cyber.cloudBackupStatus)}</td><td>Cloud backup remains a critical resilience control.</td><td>Prioritise cloud backup and email security assurance.</td></tr>
-          <tr><td>MFA / Conditional Access</td><td>${escapeHtml(mfaBasic.status)}</td><td>${escapeHtml(mfaBasic.evidence)}</td><td>Validate tenant-wide MFA/CA coverage and close gaps.</td></tr>
-          <tr><td>RMM</td><td>${escapeHtml(rmmBasic.status)}</td><td>${escapeHtml(rmmBasic.evidence)}</td><td>Confirm RMM coverage and standardise remote monitoring/remediation process.</td></tr>
-        </tbody>
-      </table>
-      <h3 class="section-gap">Additional Cyber Controls (Dynamic from Cyber sheet)</h3>
+      <p class="narrative">Cyber findings are shown dynamically from the Cyber Security sheet so all current controls are represented without duplication.</p>
       <table>
         <thead><tr><th>Control area</th><th>Status</th><th>Supplier / concern</th><th>Recommended response</th></tr></thead>
         <tbody>${dynamicCyberRowsHtml || `<tr><td colspan="4">No additional cyber controls found.</td></tr>`}</tbody>
