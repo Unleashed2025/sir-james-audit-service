@@ -771,6 +771,7 @@ function parseCyber(rows) {
   let headerIdx = -1;
   let areaIdx = 0;
   let statusIdx = 7;
+  let supplierIdx = -1;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i] || [];
@@ -791,6 +792,7 @@ function parseCyber(rows) {
       const k = normKey(header[c]);
       if (k === "control area" || (k.includes("control") && k.includes("area"))) areaIdx = c;
       if (k === "status" || k.includes("status") || k.includes("readiness")) statusIdx = c;
+      if (k.includes("supplier") || k.includes("vendor") || k.includes("provider")) supplierIdx = c;
     }
   }
 
@@ -802,11 +804,12 @@ function parseCyber(rows) {
     totalControls += 1;
     const area = areaText.toLowerCase();
     const status = `${row[statusIdx] || ""}`.trim() || "Unknown";
+    const supplier = supplierIdx >= 0 ? `${row[supplierIdx] || ""}`.trim() : "";
     const stage = classifyCyberStatus(status);
     if (stage === "na") naCount += 1;
     if (stage === "complete") completeCount += 1;
     else incompleteCount += 1;
-    controls.push({ area: areaText, status, stage });
+    controls.push({ area: areaText, status, stage, supplier });
 
     if (area.includes("cloud backup")) {
       cloudBackupStatus = status || "Unknown";
@@ -1507,6 +1510,61 @@ function buildBrilliantBasicsRows(cyber, core, software) {
   ];
 }
 
+function buildCostOptimisationRows(cyber) {
+  const controls = cyber.controls || [];
+  const servicePlans = [
+    { service: "Anti-virus", keywords: ["anti-virus", "antivirus", "endpoint protection", "defender", "sophos"], target: "A5 Defender P2 (primary) or Acronis where chosen trust-wide.", targetKeys: ["defender", "microsoft", "acronis"] },
+    { service: "Email security", keywords: ["email security", "mail security", "defender for office", "barracuda"], target: "A5 Defender for Office (primary) with optional Acronis-aligned consolidation.", targetKeys: ["defender", "microsoft", "acronis"] },
+    { service: "Microsoft 365 backup", keywords: ["365 backup", "m365 backup", "microsoft 365 backup", "office 365 backup"], target: "Consolidate to Acronis 365 backup service.", targetKeys: ["acronis"] },
+    { service: "Server backup", keywords: ["server backup", "veeam", "altaro"], target: "Consolidate to Acronis server backup service.", targetKeys: ["acronis"] },
+    { service: "Cloud backup", keywords: ["cloud backup"], target: "Consolidate to Acronis cloud backup service.", targetKeys: ["acronis"] },
+    { service: "ISPM", keywords: ["ispm", "security posture management"], target: "Consolidate to Acronis ISPM capability.", targetKeys: ["acronis"] },
+    { service: "Security awareness training", keywords: ["sat", "security awareness", "awareness training"], target: "Consolidate to Acronis SAT capability.", targetKeys: ["acronis"] },
+    { service: "365 app protection", keywords: ["365 app protection", "cloud app security", "m365 app protection"], target: "Consolidate to Acronis 365 app protection capability.", targetKeys: ["acronis"] },
+    { service: "DLP", keywords: ["dlp", "data loss prevention"], target: "Align to A5 Purview DLP and/or Acronis DLP controls.", targetKeys: ["purview", "microsoft", "acronis"] },
+    { service: "RMM", keywords: ["rmm", "remote monitoring", "remote management"], target: "Consolidate to selected trust-wide RMM path (Acronis-aligned option).", targetKeys: ["acronis"] },
+  ];
+
+  const needsConsolidationSignal = (text) => {
+    const k = normKey(text);
+    if (!k) return true;
+    return k === "no" || k === "na" || k === "n/a" || k === "unknown" || k === "multiple" || k.includes("partial") || k.includes("not");
+  };
+
+  return servicePlans.map((plan) => {
+    const matches = findControlsByKeywords(controls, plan.keywords);
+    const status = aggregateBasicsLabels(matches.map((item) => mapBasicsStatusLabel(item.status)));
+    const suppliers = Array.from(new Set(matches.map((item) => String(item.supplier || "").trim()).filter((v) => v)));
+    const supplierLabel = suppliers.length ? suppliers.join(", ") : "Unknown / validate supplier column";
+    const supplierTriggers = suppliers.length ? suppliers.some((s) => needsConsolidationSignal(s)) : true;
+    const statusTriggers = status !== "In Place";
+    const multipleSuppliers = suppliers.length > 1;
+    const nonTargetVendors = suppliers.length
+      ? suppliers.some((s) => {
+          const key = normKey(s);
+          if (needsConsolidationSignal(key)) return true;
+          return !plan.targetKeys.some((t) => key.includes(t));
+        })
+      : true;
+
+    const evidence = matches.length
+      ? matches.slice(0, 2).map((item) => `${item.area}: status=${item.status || "Unknown"}, supplier=${item.supplier || "Unknown"}`).join(" | ")
+      : "No explicit control row found in cyber controls — validate mapping in workbook.";
+
+    const recommendation = (statusTriggers || supplierTriggers || multipleSuppliers || nonTargetVendors)
+      ? `Consolidation candidate: ${plan.target}`
+      : `Already aligned signal detected. Maintain trust-standard stack and remove duplicate overlap.`;
+
+    return {
+      service: plan.service,
+      status,
+      supplier: supplierLabel,
+      recommendation,
+      evidence,
+    };
+  });
+}
+
 function createLifecycleStore() {
   return {
     flagged: { warranty: [], support: [], serviceLife: [] },
@@ -1828,6 +1886,7 @@ async function exportPdf() {
   const tenancyStatus = migration.remediation > 0 ? "Red" : "Amber";
   const coreStatus = core.configuredUnknown > 0 ? "Amber" : "Green";
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const costOptimisationRows = buildCostOptimisationRows(cyber);
   const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
   const mfaBasic = getBasicRow("MFA / Conditional Access");
   const rmmBasic = getBasicRow("RMM");
@@ -1979,6 +2038,18 @@ async function exportPdf() {
         ["0-6 months", "Data & network lifecycle", "Address support-end/service-end flags and validate extension candidates.", `${endSupport + endServiceLife} support/service-life flags.`],
         ["6-12 months", "Client compute", "Reduce unsupported OS cohorts and lifecycle exception devices.", `${client.oldOsTotal} old OS devices.`],
       ],
+    },
+    {
+      title: "Cost Optimisation and Consolidation Plan",
+      intro: "This chapter aligns current cyber control and supplier signals with the planned Microsoft A5 uplift and Acronis consolidation path. No / N/A / Partial / Multiple supplier signals are treated as consolidation candidates.",
+      head: ["Service area", "Current status", "Supplier signal", "Consolidation recommendation"],
+      body: costOptimisationRows.map((row) => [row.service, row.status, row.supplier, row.recommendation]),
+    },
+    {
+      title: "Cost Optimisation and Consolidation Plan",
+      intro: "This chapter aligns current control/supplier signals to the planned A5 uplift and Acronis consolidation path. Rows marked No / N/A / Partial / Multiple or non-target suppliers are treated as consolidation candidates.",
+      head: ["Service area", "Current status", "Supplier signal", "Consolidation recommendation"],
+      body: costOptimisationRows.map((row) => [row.service, row.status, row.supplier, row.recommendation]),
     },
   ];
 
@@ -2207,7 +2278,7 @@ async function exportPdf() {
       followOnY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY + 10 : followOnY + 10;
     }
 
-    if (i >= 3) {
+    if (i >= 3 && i <= 9) {
       const expansionModel = pdfExpansionByChapter[i + 1];
       followOnY = renderPdfExpansion(expansionModel, followOnY);
     }
@@ -2302,6 +2373,7 @@ function buildExportHtml(mode = "web") {
     .join("");
 
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const costOptimisationRows = buildCostOptimisationRows(cyber);
   const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
   const mfaBasic = getBasicRow("MFA / Conditional Access");
   const rmmBasic = getBasicRow("RMM");
@@ -2312,6 +2384,16 @@ function buildExportHtml(mode = "web") {
         <td>${escapeHtml(row.capability)}</td>
         <td>${escapeHtml(row.status)}</td>
         <td>${escapeHtml(row.evidence)}</td>
+      </tr>
+    `)
+    .join("");
+  const costOptimisationRowsHtml = costOptimisationRows
+    .map((row) => `
+      <tr>
+        <td>${escapeHtml(row.service)}</td>
+        <td>${escapeHtml(row.status)}</td>
+        <td>${escapeHtml(row.supplier)}</td>
+        <td>${escapeHtml(row.recommendation)}</td>
       </tr>
     `)
     .join("");
@@ -2844,6 +2926,15 @@ function buildExportHtml(mode = "web") {
         </tbody>
       </table>
       ${renderChapterExpansion(chapterModels.final)}
+    `)}
+
+    ${chapterPage(11, "Cost Optimisation and Consolidation Plan", `
+      <p class="narrative">This chapter aligns current supplier/control signals to the trust strategy of Microsoft A5 uplift and proposed Acronis service consolidation.</p>
+      <p class="narrative">A5 baseline includes Defender P2 (anti-virus), Defender for Office (email security), Purview, Power BI and Entra ID P2. Acronis consolidation scope includes anti-virus, email security, 365 backup, server backup, cloud backup, ISPM, SAT training, 365 app protection, DLP and RMM.</p>
+      <table>
+        <thead><tr><th>Service area</th><th>Current status</th><th>Supplier signal</th><th>Consolidation recommendation</th></tr></thead>
+        <tbody>${costOptimisationRowsHtml}</tbody>
+      </table>
     `)}
   </div>
 </body>
