@@ -2070,6 +2070,7 @@ function exportWeb() {
 
 async function exportPdf() {
   if (!workbook || !latestReport) return;
+  if (els.status) els.status.textContent = "Generating PDF export...";
   try {
     await ensurePdfLibrariesLoaded();
     const { jsPDF } = window.jspdf;
@@ -2493,19 +2494,51 @@ async function exportPdf() {
   }
 
     doc.save("audit-dashboard-export.pdf");
+    if (els.status) els.status.textContent = "PDF export downloaded.";
   } catch (error) {
-    if (els.status) els.status.textContent = "PDF export failed. Please retry after refresh.";
+    const fallbackOk = exportPdfPrintFallback();
+    if (els.status) {
+      els.status.textContent = fallbackOk
+        ? "PDF library unavailable. Opened print view fallback for Save as PDF."
+        : "PDF export failed. Please allow pop-ups or retry after refresh.";
+    }
     console.error("PDF export failed", error);
+  }
+}
+
+function exportPdfPrintFallback() {
+  try {
+    const html = buildExportHtml("pdf");
+    const win = window.open("", "_blank");
+    if (!win) return false;
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      try {
+        win.print();
+      } catch (_) {
+        // no-op
+      }
+    }, 350);
+    return true;
+  } catch (_) {
+    return false;
   }
 }
 
 async function ensurePdfLibrariesLoaded() {
   if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) return;
+  const localJspdf = new URL("assets/vendor/jspdf.umd.min.js", window.location.href).href;
+  const localAutotable = new URL("assets/vendor/jspdf.plugin.autotable.min.js", window.location.href).href;
   await loadScriptWithFallback([
+    { src: localJspdf, id: "jspdf-lib" },
     { src: "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", id: "jspdf-lib" },
     { src: "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js", id: "jspdf-lib" },
   ]);
   await loadScriptWithFallback([
+    { src: localAutotable, id: "jspdf-autotable-lib" },
     { src: "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js", id: "jspdf-autotable-lib" },
     { src: "https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js", id: "jspdf-autotable-lib" },
   ]);
