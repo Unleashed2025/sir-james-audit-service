@@ -1787,6 +1787,8 @@ function buildExportHtml(mode = "web") {
     .join("");
 
   const chapterPage = (n, title, content, isFirst = false) => `
+    ${isWord && !isFirst ? `<br class="word-page-break" clear="all" style="mso-special-character:line-break;page-break-before:always;">` : ""}
+    ${isWord && !isFirst ? `<div class="chapter-spacer"><span>Chapter break</span></div>` : ""}
     <section class="chapter-page${isFirst ? " chapter-first" : ""}">
       <div class="chapter-head">
         <div class="kicker">CHAPTER ${n}</div>
@@ -1847,12 +1849,33 @@ function buildExportHtml(mode = "web") {
       mso-page-break-before: auto;
     }
     .word-page-break {
+      display: block;
+      line-height: 0;
+      font-size: 0;
       page-break-before: always;
       break-before: page;
       mso-page-break-before: always;
+      mso-special-character: line-break;
       height: 0;
       margin: 0;
       border: 0;
+    }
+    .chapter-spacer { display: none; }
+    .word-export .chapter-spacer {
+      display: block;
+      height: 48px;
+      margin: 18px 0 10px;
+      border-top: 2px dashed #9db1cb;
+      position: relative;
+    }
+    .word-export .chapter-spacer span {
+      position: absolute;
+      top: 8px;
+      right: 0;
+      font-size: 11px;
+      color: #5a6f8b;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
     }
     @media print {
       .cover { break-after: page !important; page-break-after: always !important; }
