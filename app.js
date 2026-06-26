@@ -36,6 +36,7 @@ const els = {
 
 let workbook = null;
 let latestReport = null;
+let currentWorkbookName = "";
 const ACCESS_STATE_KEY = "audit-service-unlocked";
 const ACCESS_HASH_HEX = "cff2083f7f003ef5b8db6b8c8b43abaf68188c6ed1ea02d5d6b477f789d06ab0";
 
@@ -98,6 +99,7 @@ async function hashTextSha256(text) {
 async function onUpload(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
+  currentWorkbookName = file.name || "";
   const arrayBuffer = await file.arrayBuffer();
   workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
   showDashboardView();
@@ -366,7 +368,7 @@ function renderDashboard() {
         "Validate configured features against real adoption.",
       ], "No optimisation priorities.")}
       ${renderBoardColumn("Licensing direction", "stage-other", [
-        "Use A3 baseline for current-state comparison.",
+        "Use current licensing baseline for comparison.",
         "Map A5 + Acronis alignment to simplify vendor stack.",
       ], "No licensing direction notes.")}
       ${renderBoardColumn("Governance notes", "stage-other", [
@@ -450,7 +452,7 @@ function parseExecutiveMeta(overviewRows, dashboardRows) {
       if (!key || !value || value === "-") continue;
       if (
         out.school === "-" &&
-        (key.includes("school") || key.includes("academy") || key.includes("site name") || key.includes("organisation"))
+        (key.includes("school") || key.includes("academy") || key.includes("site name") || key.includes("organisation") || key.includes("client"))
       ) out.school = value;
       if (
         out.reportDate === "-" &&
@@ -465,6 +467,20 @@ function parseExecutiveMeta(overviewRows, dashboardRows) {
   }
   out.topPriorities = Array.from(new Set(priorities.map((p) => String(p || "").trim()).filter(Boolean))).slice(0, 6);
   return out;
+}
+
+function inferClientNameFromWorkbook(fileName) {
+  const raw = String(fileName || "").trim();
+  if (!raw) return "";
+  const noExt = raw.replace(/\.[^.]+$/, "");
+  const cleaned = noExt
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b(final|copy|audit|workbook|template|v\d+|\d{8}|\d{6})\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+  return cleaned.replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
 function buildExecutivePriorities(meta, infra, client, cyber, migration) {
@@ -491,8 +507,10 @@ function computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migrati
   const fallbackMigrationTarget = "Aug 2026 target (confirm in workbook timeline)";
   const migrationTarget = meta.migrationTarget !== "-" ? meta.migrationTarget : fallbackMigrationTarget;
   const prioritiesText = topPriorities.length ? topPriorities.join(" | ") : "No explicit priorities found on overview sheets.";
+  const inferredClientName = inferClientNameFromWorkbook(currentWorkbookName);
+  const displayClientName = meta.school && meta.school !== "-" ? meta.school : (inferredClientName || "Client Site");
   return {
-    school: meta.school || "-",
+    school: displayClientName,
     reportDate: meta.reportDate || "-",
     msReadyValue,
     criticalRiskCount,
@@ -507,7 +525,7 @@ function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migratio
   if (!els.executiveSnapshot) return;
   const snapshot = computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration);
   els.executiveSnapshot.innerHTML = `
-    <p><strong>School:</strong> ${escapeHtml(snapshot.school)}</p>
+    <p><strong>Client:</strong> ${escapeHtml(snapshot.school)}</p>
     <p><strong>Report date:</strong> ${escapeHtml(snapshot.reportDate)}</p>
     <p><strong>Microsoft readiness:</strong> ${escapeHtml(snapshot.msReadyValue)}</p>
     <p><strong>Critical risk flags:</strong> <span class="${snapshot.criticalRiskCount > 0 ? "danger" : "ok"}">${snapshot.criticalRiskCount}</span></p>
@@ -1292,7 +1310,7 @@ function renderRisks(infra, cyber, migration, client, core) {
   if (client.windows10 > 0) inFlight.push(`${client.windows10} devices on Windows 10 require replacement planning.`);
   if (infra.physicalMonitor > 0) strategic.push(`${infra.physicalMonitor} physical server items are monitor/planning items (not immediate replacement).`);
   if (core.configuredUnknown > 0) strategic.push(`${core.configuredUnknown} configured capabilities need usage confirmation for ROI tracking.`);
-  strategic.push("Trust-wide check: verify interim 365 backup and email security controls across remaining schools before migration.");
+  strategic.push("Organisation-wide check: verify interim 365 backup and email security controls across remaining sites before migration.");
 
   const stageColumn = (title, toneClass, items, emptyText) => `
     <div class="migration-stage-card ${toneClass}">
@@ -1408,7 +1426,7 @@ function renderMigration(migration) {
   els.migrationSummary.innerHTML = `
     <p><strong>Total checks:</strong> ${migration.total}</p>
     <p><strong>Ready:</strong> ${migration.ready} | <strong>In progress:</strong> ${migration.inProgress} | <strong>Remediation required:</strong> ${migration.remediation}</p>
-    <p class="muted">This dashboard prioritises Microsoft readiness for this school.</p>
+    <p class="muted">This dashboard prioritises Microsoft readiness for this client.</p>
   `;
   els.barReady.style.width = `${Math.max(0, Math.min(100, readyPct))}%`;
 }
@@ -2112,7 +2130,7 @@ async function exportPdf() {
   doc.setTextColor(125, 211, 252);
   doc.setFontSize(24);
   const schoolY = coverTitleBottomY + 44;
-  doc.text("Sir James Smith's School", 40, schoolY);
+  doc.text(executiveSnapshot.school || "Client Site", 40, schoolY);
   doc.setTextColor(219, 234, 254);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(14);
@@ -2134,7 +2152,7 @@ async function exportPdf() {
         ["Infrastructure lifecycle", infraStatus, `${infra.totalServers} servers recorded. Support-end and lifecycle flags require managed refresh planning.`],
         ["Cyber assurance", cyberStatus, `Cyber completion ${cyberPct}; not complete controls ${cyber.incompleteCount}.`],
         ["Migration readiness (Microsoft)", tenancyStatus, `${msReadyPct} ready, ${migration.remediation} remediation items remain.`],
-        ["Core application / A3", coreStatus, `Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.`],
+        ["Core application / licensing", coreStatus, `Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.`],
         ["Executive snapshot", "Info", `School: ${executiveSnapshot.school}; Report date: ${executiveSnapshot.reportDate}; Migration target: ${executiveSnapshot.migrationTarget}.`],
         ["Critical risk flags", executiveSnapshot.criticalRiskCount > 0 ? "Attention" : "Stable", `${executiveSnapshot.criticalRiskCount} board-level risk flags identified from current workbook values.`],
         ["Immediate replacement candidates", executiveSnapshot.immediateReplacementCandidates > 0 ? "Action required" : "Stable", `${executiveSnapshot.immediateReplacementCandidates} immediate replacement candidates detected.`],
@@ -2151,7 +2169,7 @@ async function exportPdf() {
         ["Client Compute", clientStatus, "Unsupported/ageing OS cohorts require replacement planning."],
         ["Cyber Security", cyberStatus, "Key controls still not complete; cloud backup and assurance remain priorities."],
         ["Tenancy Readiness", tenancyStatus, "Remediation closure needed before migration go/no-go."],
-        ["Core Application / A3", coreStatus, "A3 optimisation and feature utilisation review remains open."],
+        ["Core Application / Licensing", coreStatus, "Licence optimisation and feature utilisation review remains open."],
       ],
     },
     {
@@ -2210,11 +2228,11 @@ async function exportPdf() {
       body: dynamicCyberRows.map((row) => [row.area, row.status, row.concern, row.recommendation]),
     },
     {
-      title: "Core Application and A3 Optimisation",
+      title: "Core Application and Licensing Optimisation",
       intro: "This section focuses on value realisation from current licensing: enabled features should be evidenced as actively used, and non-enabled capability should be treated as a missed opportunity.",
       head: ["Area", "Position", "Main concern", "Recommended response"],
       body: [
-        ["Current licence", String(core.currentLicence), "Feature enablement may exceed proven operational usage.", "Run usage validation and optimise A3 baseline."],
+        ["Current licence", String(core.currentLicence), "Feature enablement may exceed proven operational usage.", "Run usage validation and optimise the current licensing baseline."],
         ["Configured-but-usage-unknown", String(core.configuredUnknown), "Potential missed value and governance gap.", "Map enabled features to active operational use."],
       ],
     },
@@ -2317,7 +2335,7 @@ async function exportPdf() {
       ],
       whatThisMeans: "Value realisation depends on proving usage for enabled capability and enabling priority features that are currently under-used.",
       priorityActions: {
-        now: ["Validate enabled features against actual usage.", "Prioritise high-value A3 capabilities for activation."],
+        now: ["Validate enabled features against actual usage.", "Prioritise high-value licensed capabilities for activation."],
         d90: ["Track adoption and governance outcomes by feature group."],
         y12: ["Decide licence uplift only after baseline optimisation evidence."],
       },
@@ -2869,11 +2887,11 @@ function buildExportHtml(mode = "web") {
     core: {
       currentState: [`Current licence recorded as ${core.currentLicence}.`, `${core.configuredUnknown} configured capabilities have unclear usage evidence.`, `${core.featureRows} feature rows assessed in baseline review.`],
       whatThisMeans: "Value realisation depends on proving usage for enabled capability and enabling priority features that are currently under-used.",
-      priorityActions: { now: ["Validate enabled features against actual usage.", "Prioritise high-value A3 capabilities for activation."], d90: ["Track adoption and governance outcomes by feature group."], y12: ["Decide licence uplift only after baseline optimisation evidence." ] },
+      priorityActions: { now: ["Validate enabled features against actual usage.", "Prioritise high-value licensed capabilities for activation."], d90: ["Track adoption and governance outcomes by feature group."], y12: ["Decide licence uplift only after baseline optimisation evidence." ] },
       dependencies: [{ dependency: "Tenant configuration evidence", owner: "M365 platform owner", reason: "Configuration and usage proof drives optimisation decisions." }],
       riskIfDelayed: "Licence value remains under-realised and overlapping tooling costs persist.",
       costEffort: { band: "Low", rationale: "Primarily configuration validation, governance and adoption enablement." },
-      successCriteria: ["Configured features have owner + usage evidence.", "Priority A3 opportunities moved to operational use."],
+      successCriteria: ["Configured features have owner + usage evidence.", "Priority licensed opportunities moved to operational use."],
       assumptions: ["Current licence and feature matrix remain accurate."],
       topAssets: sharedTopAssets,
       beforeTarget: [{ area: "Licence value", before: "Enabled state not consistently evidenced.", target: "Usage-proven features and clear optimisation roadmap." }],
@@ -2908,7 +2926,7 @@ function buildExportHtml(mode = "web") {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Audit Dashboard Export</title>
+  <title>Client Audit Report Export</title>
   <style>
     @page { size: A4; margin: 18mm 14mm 18mm 14mm; }
     body { font-family: Calibri, Arial, sans-serif; margin: 0; color: #1b1f24; background: ${isWord || isPdf ? "#ffffff" : "#eef2f7"}; }
@@ -3028,7 +3046,7 @@ function buildExportHtml(mode = "web") {
     <section class="cover">
       <div class="cover-brand"><img class="cover-logo" src="${escapeAttr(coverLogoUrl)}" alt="Unleashed"></div>
       <div class="cover-title">IT Audit Summary, Findings and Roadmap</div>
-      <div class="cover-school">Sir James Smith's School</div>
+      <div class="cover-school">${escapeHtml(executiveSnapshot.school || "Client Site")}</div>
       <div class="cover-copy">${escapeHtml(thankYouLine)} This report provides a structured narrative of the current estate, key risks, decisions required and the recommended remediation roadmap.</div>
       <div class="cover-focus">Audit focus</div>
       <div class="cover-focus-sub">Infrastructure • Cyber Security • Migration Readiness</div>
@@ -3045,7 +3063,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Infrastructure lifecycle</td><td>${infraStatus}</td><td>${infra.totalServers} servers recorded. Support-end and lifecycle flags require managed refresh planning.</td></tr>
           <tr><td>Cyber assurance</td><td>${cyberStatus}</td><td>Cyber completion ${cyberPct}; not complete controls ${cyber.incompleteCount}.</td></tr>
           <tr><td>Migration readiness (Microsoft)</td><td>${tenancyStatus}</td><td>${msReadyPct} ready, ${migration.remediation} remediation items remain.</td></tr>
-          <tr><td>Core application / A3</td><td>${coreStatus}</td><td>Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.</td></tr>
+          <tr><td>Core application / licensing</td><td>${coreStatus}</td><td>Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.</td></tr>
         </tbody>
       </table>
       <h3 class="section-gap">Executive Snapshot</h3>
@@ -3077,7 +3095,7 @@ function buildExportHtml(mode = "web") {
           <tr><td>Client Compute</td><td>${clientStatus}</td><td>Unsupported/ageing OS cohorts require replacement planning.</td></tr>
           <tr><td>Cyber Security</td><td>${cyberStatus}</td><td>Key controls still not complete; cloud backup and assurance remain priorities.</td></tr>
           <tr><td>Tenancy Readiness</td><td>${tenancyStatus}</td><td>Remediation closure needed before migration go/no-go.</td></tr>
-          <tr><td>Core Application / A3</td><td>${coreStatus}</td><td>A3 optimisation and feature utilisation review remains open.</td></tr>
+          <tr><td>Core Application / Licensing</td><td>${coreStatus}</td><td>Licence optimisation and feature utilisation review remains open.</td></tr>
         </tbody>
       </table>
     `)}
@@ -3152,12 +3170,12 @@ function buildExportHtml(mode = "web") {
       ${renderChapterExpansion(chapterModels.cyber)}
     `)}
 
-    ${chapterPage(9, "Core Application and A3 Optimisation", `
-      <p class="narrative">Core application and licensing review should focus on value realisation: configured capabilities must be validated as actively used, while non-enabled A3 features represent an avoidable ROI gap.</p>
+    ${chapterPage(9, "Core Application and Licensing Optimisation", `
+      <p class="narrative">Core application and licensing review should focus on value realisation: configured capabilities must be validated as actively used, while non-enabled licensed features represent an avoidable ROI gap.</p>
       <table>
         <thead><tr><th>Area</th><th>Position</th><th>Main concern</th><th>Recommended response</th></tr></thead>
         <tbody>
-          <tr><td>Current licence</td><td>${escapeHtml(core.currentLicence)}</td><td>Feature enablement may exceed proven operational usage.</td><td>Run usage validation and optimise A3 baseline.</td></tr>
+          <tr><td>Current licence</td><td>${escapeHtml(core.currentLicence)}</td><td>Feature enablement may exceed proven operational usage.</td><td>Run usage validation and optimise the current licensing baseline.</td></tr>
           <tr><td>Configured-but-usage-unknown</td><td>${core.configuredUnknown}</td><td>Potential missed value and governance gap.</td><td>Map enabled features to active operational use.</td></tr>
         </tbody>
       </table>
