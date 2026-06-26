@@ -2209,6 +2209,7 @@ function buildExportHtml(mode = "web") {
         <thead><tr><th>Area</th><th>Status</th><th>Main risk / gap</th><th>Immediate action</th></tr></thead>
         <tbody>${remediationRows || `<tr><td colspan="4">No open migration actions.</td></tr>`}</tbody>
       </table>
+      ${renderChapterExpansion(chapterModels.migration)}
     `)}
 
     ${chapterPage(5, "Data Infrastructure – Servers, SAN and Storage", `
