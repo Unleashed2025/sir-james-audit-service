@@ -477,8 +477,7 @@ function buildExecutivePriorities(meta, infra, client, cyber, migration) {
   return Array.from(new Set(priorities.map((item) => String(item || "").trim()).filter(Boolean))).slice(0, 3);
 }
 
-function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration) {
-  if (!els.executiveSnapshot) return;
+function computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration) {
   const msReadyValue = migration.total > 0
     ? `${((migration.ready / migration.total) * 100).toFixed(1)}%`
     : (dashboard.msReadyPct !== "-" ? dashboard.msReadyPct : "-");
@@ -490,16 +489,31 @@ function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migratio
   const immediateReplacementCandidates = infra.serverCritical + client.windows10;
   const topPriorities = buildExecutivePriorities(meta, infra, client, cyber, migration);
   const fallbackMigrationTarget = "Aug 2026 target (confirm in workbook timeline)";
-  const priorityText = topPriorities.length ? topPriorities.join(" | ") : "No explicit priorities found on overview sheets.";
+  const migrationTarget = meta.migrationTarget !== "-" ? meta.migrationTarget : fallbackMigrationTarget;
+  const prioritiesText = topPriorities.length ? topPriorities.join(" | ") : "No explicit priorities found on overview sheets.";
+  return {
+    school: meta.school || "-",
+    reportDate: meta.reportDate || "-",
+    msReadyValue,
+    criticalRiskCount,
+    immediateReplacementCandidates,
+    migrationTarget,
+    topPriorities,
+    prioritiesText,
+  };
+}
 
+function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration) {
+  if (!els.executiveSnapshot) return;
+  const snapshot = computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration);
   els.executiveSnapshot.innerHTML = `
-    <p><strong>School:</strong> ${escapeHtml(meta.school || "-")}</p>
-    <p><strong>Report date:</strong> ${escapeHtml(meta.reportDate || "-")}</p>
-    <p><strong>Microsoft readiness:</strong> ${escapeHtml(msReadyValue)}</p>
-    <p><strong>Critical risk flags:</strong> <span class="${criticalRiskCount > 0 ? "danger" : "ok"}">${criticalRiskCount}</span></p>
-    <p><strong>Immediate replacement candidates:</strong> <span class="${immediateReplacementCandidates > 0 ? "danger" : "ok"}">${immediateReplacementCandidates}</span></p>
-    <p><strong>Migration target:</strong> ${escapeHtml(meta.migrationTarget !== "-" ? meta.migrationTarget : fallbackMigrationTarget)}</p>
-    <p><strong>Top priorities:</strong> ${escapeHtml(priorityText)}</p>
+    <p><strong>School:</strong> ${escapeHtml(snapshot.school)}</p>
+    <p><strong>Report date:</strong> ${escapeHtml(snapshot.reportDate)}</p>
+    <p><strong>Microsoft readiness:</strong> ${escapeHtml(snapshot.msReadyValue)}</p>
+    <p><strong>Critical risk flags:</strong> <span class="${snapshot.criticalRiskCount > 0 ? "danger" : "ok"}">${snapshot.criticalRiskCount}</span></p>
+    <p><strong>Immediate replacement candidates:</strong> <span class="${snapshot.immediateReplacementCandidates > 0 ? "danger" : "ok"}">${snapshot.immediateReplacementCandidates}</span></p>
+    <p><strong>Migration target:</strong> ${escapeHtml(snapshot.migrationTarget)}</p>
+    <p><strong>Top priorities:</strong> ${escapeHtml(snapshot.prioritiesText)}</p>
   `;
 }
 
@@ -2007,6 +2021,7 @@ async function exportPdf() {
 
   const data = latestReport;
   const { infra, network, client, cyber, migration, core, dashboard } = data;
+  const executiveMeta = data.executiveMeta || { school: "-", reportDate: "-", migrationTarget: "-", topPriorities: [] };
   const software = data.software || { entries: [] };
   const lifecycle = mergeLifecycleStores([infra.lifecycle, network.lifecycle, client.lifecycle]);
   const endWarranty = (lifecycle.flagged.warranty || []).length;
@@ -2028,6 +2043,7 @@ async function exportPdf() {
   const mfaBasic = getBasicRow("MFA / Conditional Access");
   const rmmBasic = getBasicRow("RMM");
   const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
+  const executiveSnapshot = computeExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -2080,6 +2096,10 @@ async function exportPdf() {
         ["Cyber assurance", cyberStatus, `Cyber completion ${cyberPct}; not complete controls ${cyber.incompleteCount}.`],
         ["Migration readiness (Microsoft)", tenancyStatus, `${msReadyPct} ready, ${migration.remediation} remediation items remain.`],
         ["Core application / A3", coreStatus, `Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.`],
+        ["Executive snapshot", "Info", `School: ${executiveSnapshot.school}; Report date: ${executiveSnapshot.reportDate}; Migration target: ${executiveSnapshot.migrationTarget}.`],
+        ["Critical risk flags", executiveSnapshot.criticalRiskCount > 0 ? "Attention" : "Stable", `${executiveSnapshot.criticalRiskCount} board-level risk flags identified from current workbook values.`],
+        ["Immediate replacement candidates", executiveSnapshot.immediateReplacementCandidates > 0 ? "Action required" : "Stable", `${executiveSnapshot.immediateReplacementCandidates} immediate replacement candidates detected.`],
+        ["Top priorities", "Action plan", executiveSnapshot.prioritiesText],
       ],
     },
     {
@@ -2476,6 +2496,7 @@ function buildExportHtml(mode = "web") {
   const isPdf = mode === "pdf";
 
   const { infra, network, client, cyber, migration, core, dashboard } = data;
+  const executiveMeta = data.executiveMeta || { school: "-", reportDate: "-", migrationTarget: "-", topPriorities: [] };
   const software = data.software || { entries: [] };
   const lifecycle = mergeLifecycleStores([infra.lifecycle, network.lifecycle, client.lifecycle]);
   const endWarranty = (lifecycle.flagged.warranty || []).length;
@@ -2488,6 +2509,7 @@ function buildExportHtml(mode = "web") {
   const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
   const logoBlueUrl = new URL("assets/unleashed-logo-blue.png", window.location.href).href;
   const coverLogoUrl = isWord ? logoBlueUrl : logoWhiteUrl;
+  const executiveSnapshot = computeExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
 
   const infraStatus = (infra.ws2012 > 0 || infra.serverCritical > 0) ? "Red" : "Amber";
   const networkStatus = (network.apsOutOfWarranty + network.switchesOutOfWarranty + network.firewallsOutOfWarranty) > 0 ? "Red" : "Amber";
@@ -2939,6 +2961,18 @@ function buildExportHtml(mode = "web") {
           <tr><td>Cyber assurance</td><td>${cyberStatus}</td><td>Cyber completion ${cyberPct}; not complete controls ${cyber.incompleteCount}.</td></tr>
           <tr><td>Migration readiness (Microsoft)</td><td>${tenancyStatus}</td><td>${msReadyPct} ready, ${migration.remediation} remediation items remain.</td></tr>
           <tr><td>Core application / A3</td><td>${coreStatus}</td><td>Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.</td></tr>
+        </tbody>
+      </table>
+      <h3 class="section-gap">Executive Snapshot</h3>
+      <table>
+        <thead><tr><th>Executive marker</th><th>Position</th><th>Summary</th></tr></thead>
+        <tbody>
+          <tr><td>School and report date</td><td>Info</td><td>${escapeHtml(executiveSnapshot.school)} | ${escapeHtml(executiveSnapshot.reportDate)}</td></tr>
+          <tr><td>Microsoft readiness</td><td>${escapeHtml(executiveSnapshot.msReadyValue)}</td><td>Readiness score from migration workbook rows.</td></tr>
+          <tr><td>Critical risk flags</td><td>${executiveSnapshot.criticalRiskCount > 0 ? "Attention" : "Stable"}</td><td>${executiveSnapshot.criticalRiskCount} board-level risk flags currently active.</td></tr>
+          <tr><td>Immediate replacement candidates</td><td>${executiveSnapshot.immediateReplacementCandidates > 0 ? "Action required" : "Stable"}</td><td>${executiveSnapshot.immediateReplacementCandidates} immediate replacement candidates detected.</td></tr>
+          <tr><td>Migration target</td><td>${escapeHtml(executiveSnapshot.migrationTarget)}</td><td>Cutover target from overview/dashboard sheets (with fallback).</td></tr>
+          <tr><td>Top priorities</td><td>Action plan</td><td>${escapeHtml(executiveSnapshot.prioritiesText)}</td></tr>
         </tbody>
       </table>
       <h3 class="section-gap">Unleashed Brilliant Basics</h3>
