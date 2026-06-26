@@ -24,6 +24,7 @@ const els = {
   clientSummary: document.getElementById("client-summary"),
   cyberSummary: document.getElementById("cyber-summary"),
   coreSummary: document.getElementById("core-summary"),
+  brilliantBasicsSummary: document.getElementById("brilliant-basics-summary"),
   sheetSelect: document.getElementById("sheet-select"),
   sheetInfo: document.getElementById("sheet-info"),
   sheetTable: document.getElementById("sheet-table"),
@@ -351,6 +352,28 @@ function renderDashboard() {
       ], "No governance notes.")}
     </div>
   `;
+
+  const dashboardBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const dashboardBasicsRowsHtml = dashboardBasicsRows
+    .map((row) => `
+      <tr>
+        <td>${escapeHtml(row.capability)}</td>
+        <td><span class="basics-status ${escapeHtml(basicsStatusClassName(row.status))}">${escapeHtml(row.status)}</span></td>
+        <td>${escapeHtml(row.evidence)}</td>
+      </tr>
+    `)
+    .join("");
+
+  if (els.brilliantBasicsSummary) {
+    els.brilliantBasicsSummary.innerHTML = `
+      <div class="table-wrap basics-table-wrap">
+        <table class="basics-table">
+          <thead><tr><th>Control</th><th>Status</th><th>Evidence note</th></tr></thead>
+          <tbody>${dashboardBasicsRowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+  }
 }
 
 function parseDashboard(rows) {
@@ -1329,6 +1352,13 @@ function aggregateBasicsLabels(labels) {
   if (clean.includes("Partial")) return "Partial";
   if (clean.includes("Not In Place")) return "Not In Place";
   return "Unknown";
+}
+
+function basicsStatusClassName(status) {
+  if (status === "In Place") return "status-in-place";
+  if (status === "Partial") return "status-partial";
+  if (status === "Not In Place") return "status-not-in-place";
+  return "status-unknown";
 }
 
 function formatBasicsEvidence(evidenceItems, fallback) {
