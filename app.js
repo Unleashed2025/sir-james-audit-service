@@ -373,6 +373,7 @@ function renderDashboard() {
   `;
 
   const dashboardBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const dashboardCostRows = buildCostOptimisationRows(cyber);
   const dashboardBasicsRowsHtml = dashboardBasicsRows
     .map((row) => `
       <tr>
@@ -382,13 +383,31 @@ function renderDashboard() {
       </tr>
     `)
     .join("");
+  const dashboardCostRowsHtml = dashboardCostRows
+    .map((row) => `
+      <tr>
+        <td>${escapeHtml(row.service)}</td>
+        <td><span class="basics-status ${escapeHtml(basicsStatusClassName(row.status))}">${escapeHtml(row.status)}</span></td>
+        <td>${escapeHtml(row.supplier)}</td>
+        <td>${escapeHtml(row.recommendation)}</td>
+      </tr>
+    `)
+    .join("");
 
   if (els.brilliantBasicsSummary) {
     els.brilliantBasicsSummary.innerHTML = `
+      <p class="muted">Brilliant Basics alignment (A5 and Acronis direction):</p>
       <div class="table-wrap basics-table-wrap">
         <table class="basics-table">
           <thead><tr><th>Control</th><th>Status</th><th>Evidence note</th></tr></thead>
           <tbody>${dashboardBasicsRowsHtml}</tbody>
+        </table>
+      </div>
+      <p class="muted">Cost optimisation and supplier consolidation signals (from Cyber Security sheet):</p>
+      <div class="table-wrap basics-table-wrap">
+        <table class="basics-table">
+          <thead><tr><th>Service area</th><th>Status</th><th>Supplier signal</th><th>Consolidation recommendation</th></tr></thead>
+          <tbody>${dashboardCostRowsHtml}</tbody>
         </table>
       </div>
     `;
