@@ -8,7 +8,18 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-  <div class="shell">
+  <div id="auth-gate" class="auth-gate">
+    <div class="auth-card">
+      <h2>Protected Audit Service</h2>
+      <p>Enter the access password to upload the workbook and generate report outputs.</p>
+      <label for="access-password">Password</label>
+      <input id="access-password" type="password" autocomplete="current-password">
+      <button id="access-submit" class="primary" type="button">Unlock</button>
+      <p id="access-error" class="access-error hidden">Incorrect password.</p>
+    </div>
+  </div>
+
+  <div id="app-shell" class="shell hidden">
     <header class="topbar card">
       <div>
         <h1>Audit Dashboard</h1>
@@ -28,12 +39,6 @@
     <section id="home-view" class="card home-hero">
       <h2>Welcome</h2>
       <p>Upload a school audit workbook to generate lifecycle, migration readiness, cyber, and roadmap insight in one board-ready dashboard.</p>
-      <p>
-        Public report download:
-        <a href="downloads/st-james-school-site-audit-and-readiness-output.docx" download>
-          Download latest Word report
-        </a>
-      </p>
       <div class="home-hero-grid">
         <div class="home-chip"><strong>Board-ready outputs</strong><span>Executive risks, lifecycle status, and migration actions.</span></div>
         <div class="home-chip"><strong>Adaptive parsing</strong><span>New cyber/network rows are automatically detected.</span></div>
