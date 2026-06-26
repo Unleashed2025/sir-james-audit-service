@@ -1553,6 +1553,43 @@ function formatBasicsEvidence(evidenceItems, fallback) {
   return `${preview}${extra}`;
 }
 
+function buildCyberDynamicRows(cyber, maxRows = 40) {
+  const controls = (cyber && Array.isArray(cyber.controls)) ? cyber.controls : [];
+  const seenAreas = new Set();
+  const ranked = [...controls]
+    .filter((control) => String(control?.area || "").trim() !== "")
+    .map((control) => {
+      const stage = String(control.stage || "").toLowerCase();
+      const rank = stage === "complete" ? 1 : 0;
+      return { ...control, rank };
+    })
+    .sort((a, b) => a.rank - b.rank || String(a.area).localeCompare(String(b.area)));
+
+  const out = [];
+  for (const control of ranked) {
+    const area = String(control.area || "").trim();
+    const areaKey = normKey(area);
+    if (!area || seenAreas.has(areaKey)) continue;
+    seenAreas.add(areaKey);
+    const status = String(control.status || "Unknown").trim() || "Unknown";
+    const supplier = String(control.supplier || "Unknown").trim() || "Unknown";
+    const stage = String(control.stage || "").toLowerCase();
+    let recommendation = "Validate status and assign an owner with evidence and review cadence.";
+    if (stage === "complete") recommendation = "Maintain control coverage and evidence of effectiveness.";
+    else if (stage === "na") recommendation = "Treat as not implemented and prioritise remediation/alignment.";
+    else if (status.toLowerCase().includes("partial") || stage === "incomplete") recommendation = "Complete implementation and evidence as a priority remediation item.";
+    out.push({
+      area,
+      status,
+      supplier,
+      concern: `Supplier signal: ${supplier}`,
+      recommendation,
+    });
+    if (out.length >= maxRows) break;
+  }
+  return out;
+}
+
 function findControlsByKeywords(controls, keywords) {
   const keys = (keywords || []).map((k) => normKey(k)).filter((k) => k);
   return (controls || []).filter((control) => {
@@ -2015,9 +2052,10 @@ function exportWeb() {
 
 async function exportPdf() {
   if (!workbook || !latestReport) return;
-  await ensurePdfLibrariesLoaded();
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  try {
+    await ensurePdfLibrariesLoaded();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
 
   const data = latestReport;
   const { infra, network, client, cyber, migration, core, dashboard } = data;
@@ -2039,6 +2077,7 @@ async function exportPdf() {
   const coreStatus = core.configuredUnknown > 0 ? "Amber" : "Green";
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
   const costOptimisationRows = buildCostOptimisationRows(cyber);
+  const dynamicCyberRows = buildCyberDynamicRows(cyber, 40);
   const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
   const mfaBasic = getBasicRow("MFA / Conditional Access");
   const rmmBasic = getBasicRow("RMM");
@@ -2174,6 +2213,7 @@ async function exportPdf() {
         ["Email security / Cloud backup", `${cyber.emailSecurityStatus} / ${cyber.cloudBackupStatus}`, "Cloud backup remains a critical resilience control.", "Prioritise cloud backup and email security assurance."],
         ["MFA / Conditional Access", mfaBasic.status, mfaBasic.evidence, "Validate tenant-wide MFA/CA coverage and close gaps."],
         ["RMM", rmmBasic.status, rmmBasic.evidence, "Confirm RMM coverage and standardise remote monitoring/remediation process."],
+        ...dynamicCyberRows.map((row) => [row.area, row.status, row.concern, row.recommendation]),
       ],
     },
     {
@@ -2441,13 +2481,39 @@ async function exportPdf() {
     }
   }
 
-  doc.save("audit-dashboard-export.pdf");
+    doc.save("audit-dashboard-export.pdf");
+  } catch (error) {
+    if (els.status) els.status.textContent = "PDF export failed. Please retry after refresh.";
+    console.error("PDF export failed", error);
+  }
 }
 
 async function ensurePdfLibrariesLoaded() {
   if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) return;
-  await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", "jspdf-lib");
-  await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js", "jspdf-autotable-lib");
+  await loadScriptWithFallback([
+    { src: "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", id: "jspdf-lib" },
+    { src: "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js", id: "jspdf-lib" },
+  ]);
+  await loadScriptWithFallback([
+    { src: "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js", id: "jspdf-autotable-lib" },
+    { src: "https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js", id: "jspdf-autotable-lib" },
+  ]);
+  if (!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable)) {
+    throw new Error("PDF libraries could not be loaded.");
+  }
+}
+
+async function loadScriptWithFallback(candidates) {
+  let lastError = null;
+  for (const candidate of candidates || []) {
+    try {
+      await loadScriptOnce(candidate.src, candidate.id);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Failed to load script.");
 }
 
 async function loadImageAsDataUrl(url) {
@@ -2470,19 +2536,34 @@ function loadScriptOnce(src, id) {
   return new Promise((resolve, reject) => {
     const existing = document.getElementById(id);
     if (existing) {
-      if (existing.getAttribute("data-loaded") === "true") resolve();
-      else existing.addEventListener("load", () => resolve(), { once: true });
-      return;
+      if (existing.getAttribute("data-loaded") === "true") {
+        resolve();
+        return;
+      }
+      if (existing.getAttribute("data-failed") === "true") {
+        existing.remove();
+      } else if (existing.getAttribute("data-src") === src) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error(`Failed to load script: ${src}`)), { once: true });
+        return;
+      } else {
+        existing.remove();
+      }
     }
     const script = document.createElement("script");
     script.id = id;
     script.src = src;
+    script.setAttribute("data-src", src);
     script.async = true;
     script.onload = () => {
       script.setAttribute("data-loaded", "true");
+      script.removeAttribute("data-failed");
       resolve();
     };
-    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    script.onerror = () => {
+      script.setAttribute("data-failed", "true");
+      reject(new Error(`Failed to load script: ${src}`));
+    };
     document.head.appendChild(script);
   });
 }
@@ -2533,6 +2614,7 @@ function buildExportHtml(mode = "web") {
 
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
   const costOptimisationRows = buildCostOptimisationRows(cyber);
+  const dynamicCyberRows = buildCyberDynamicRows(cyber, 40);
   const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
   const mfaBasic = getBasicRow("MFA / Conditional Access");
   const rmmBasic = getBasicRow("RMM");
@@ -2552,6 +2634,16 @@ function buildExportHtml(mode = "web") {
         <td>${escapeHtml(row.service)}</td>
         <td>${escapeHtml(row.status)}</td>
         <td>${escapeHtml(row.supplier)}</td>
+        <td>${escapeHtml(row.recommendation)}</td>
+      </tr>
+    `)
+    .join("");
+  const dynamicCyberRowsHtml = dynamicCyberRows
+    .map((row) => `
+      <tr>
+        <td>${escapeHtml(row.area)}</td>
+        <td>${escapeHtml(row.status)}</td>
+        <td>${escapeHtml(row.concern)}</td>
         <td>${escapeHtml(row.recommendation)}</td>
       </tr>
     `)
@@ -3069,6 +3161,11 @@ function buildExportHtml(mode = "web") {
           <tr><td>MFA / Conditional Access</td><td>${escapeHtml(mfaBasic.status)}</td><td>${escapeHtml(mfaBasic.evidence)}</td><td>Validate tenant-wide MFA/CA coverage and close gaps.</td></tr>
           <tr><td>RMM</td><td>${escapeHtml(rmmBasic.status)}</td><td>${escapeHtml(rmmBasic.evidence)}</td><td>Confirm RMM coverage and standardise remote monitoring/remediation process.</td></tr>
         </tbody>
+      </table>
+      <h3 class="section-gap">Additional Cyber Controls (Dynamic from Cyber sheet)</h3>
+      <table>
+        <thead><tr><th>Control area</th><th>Status</th><th>Supplier / concern</th><th>Recommended response</th></tr></thead>
+        <tbody>${dynamicCyberRowsHtml || `<tr><td colspan="4">No additional cyber controls found.</td></tr>`}</tbody>
       </table>
       ${renderChapterExpansion(chapterModels.cyber)}
     `)}
