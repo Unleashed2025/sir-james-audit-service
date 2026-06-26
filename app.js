@@ -789,8 +789,8 @@ function parseCyber(rows) {
 function parseMigration(rows) {
   let total = 0, ready = 0, inProgress = 0, remediation = 0;
   const items = [];
+  const seen = new Set();
   let headerIdx = -1;
-  let areaIdx = 0, checkIdx = 1, sourceIdx = 2, statusIdx = 5, actionIdx = 6;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -802,52 +802,84 @@ function parseMigration(rows) {
     }
   }
 
-  if (headerIdx >= 0) {
-    const header = rows[headerIdx] || [];
-    for (let i = 0; i < header.length; i++) {
-      const key = normKey(header[i]);
-      if (key === "area") areaIdx = i;
-      if (key === "check") checkIdx = i;
-      if (key === "source platform" || key.includes("source platform")) sourceIdx = i;
-      if (key.includes("status") || key.includes("readiness")) statusIdx = i;
-      if (
-        key.includes("action") ||
-        key.includes("remediation") ||
-        key.includes("recommendation") ||
-        key.includes("notes")
-      ) actionIdx = i;
-    }
-  }
+  const header = headerIdx >= 0 ? (rows[headerIdx] || []) : [];
+  const blocks = detectMigrationBlocks(header);
 
   const start = headerIdx >= 0 ? headerIdx + 1 : 0;
   for (let i = start; i < rows.length; i++) {
     const row = rows[i];
-    const area = String(row[areaIdx] || "").trim();
-    const check = String(row[checkIdx] || "").trim();
-    if (!area && !check) continue;
-    const sourcePlatform = String(row[sourceIdx] || "").trim();
-    if (!isMicrosoftMigrationRow(area, check, sourcePlatform)) continue;
+    for (const block of blocks) {
+      const area = String(row[block.areaIdx] || "").trim();
+      const check = String(row[block.checkIdx] || "").trim();
+      if (!area && !check) continue;
+      const sourcePlatform = String(row[block.sourceIdx] || "").trim();
+      if (!isMicrosoftMigrationRow(area, check, sourcePlatform)) continue;
 
-    const rawStatus = String(row[statusIdx] || "").trim();
-    if (!rawStatus) continue;
-    total += 1;
-    const stage = getMigrationStage(rawStatus);
-    const action = String(row[actionIdx] || "").trim();
-    items.push({
-      area: area || "-",
-      check: check || "-",
-      status: rawStatus || stage,
-      stage,
-      action: action || (stage === "Ready" ? "No action required" : "Define remediation action"),
-    });
+      const rawStatus = String(row[block.statusIdx] || "").trim();
+      if (!rawStatus) continue;
+      const action = String(row[block.actionIdx] || "").trim();
+      const itemKey = `${area}|${check}|${rawStatus}|${action}`;
+      if (seen.has(itemKey)) continue;
+      seen.add(itemKey);
 
-    if (stage === "Ready") ready += 1;
-    if (stage === "In progress") inProgress += 1;
-    if (stage === "Remediation required") remediation += 1;
+      total += 1;
+      const stage = getMigrationStage(rawStatus);
+      items.push({
+        area: area || "-",
+        check: check || "-",
+        status: rawStatus || stage,
+        stage,
+        action: action || (stage === "Ready" ? "No action required" : "Define remediation action"),
+      });
+
+      if (stage === "Ready") ready += 1;
+      if (stage === "In progress") inProgress += 1;
+      if (stage === "Remediation required") remediation += 1;
+    }
   }
 
   const remaining = items.filter((item) => item.stage !== "Ready");
   return { total, ready, inProgress, remediation, items, remaining };
+}
+
+function detectMigrationBlocks(header) {
+  if (!header || !header.length) {
+    return [{ areaIdx: 0, checkIdx: 1, sourceIdx: 2, statusIdx: 5, actionIdx: 8 }];
+  }
+
+  const keys = header.map((h) => normKey(h));
+  const areaStarts = [];
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i] === "area") areaStarts.push(i);
+  }
+  if (!areaStarts.length) {
+    return [{ areaIdx: 0, checkIdx: 1, sourceIdx: 2, statusIdx: 5, actionIdx: 8 }];
+  }
+
+  const blocks = [];
+  for (let b = 0; b < areaStarts.length; b++) {
+    const start = areaStarts[b];
+    const end = b < areaStarts.length - 1 ? areaStarts[b + 1] : keys.length;
+    const block = {
+      areaIdx: start,
+      checkIdx: Math.min(start + 1, Math.max(start, end - 1)),
+      sourceIdx: Math.min(start + 2, Math.max(start, end - 1)),
+      statusIdx: Math.min(start + 5, Math.max(start, end - 1)),
+      actionIdx: Math.min(start + 8, Math.max(start, end - 1)),
+    };
+
+    for (let i = start; i < end; i++) {
+      const key = keys[i];
+      if (key === "check") block.checkIdx = i;
+      if (key === "source platform" || key.includes("source platform")) block.sourceIdx = i;
+      if (key === "status" || key.includes("status")) block.statusIdx = i;
+      if (key === "remediation required") block.actionIdx = i;
+      else if (key.includes("action") || key.includes("recommendation")) block.actionIdx = i;
+    }
+    blocks.push(block);
+  }
+
+  return blocks;
 }
 
 function isMicrosoftMigrationRow(areaText, checkText, sourcePlatform = "") {
