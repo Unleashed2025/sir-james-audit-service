@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Dashboard</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar card">
+      <div>
+        <h1>Audit Dashboard</h1>
+        <p>Upload an audit workbook and view board-level summary, risks, and sheet details.</p>
+      </div>
+      <div class="topbar-actions">
+        <label class="file-picker">
+          <span>Upload audit workbook</span>
+          <input id="file-input" type="file" accept=".xlsx,.xlsm,.xls">
+        </label>
+        <button id="export-web" class="primary" disabled>Export Web</button>
+        <button id="export-word" class="primary" disabled>Export Word</button>
+        <button id="export-pdf" class="primary" disabled>Export PDF</button>
+      </div>
+    </header>
+
+    <section id="home-view" class="card home-hero">
+      <h2>Welcome</h2>
+      <p>Upload a school audit workbook to generate lifecycle, migration readiness, cyber, and roadmap insight in one board-ready dashboard.</p>
+      <div class="home-hero-grid">
+        <div class="home-chip"><strong>Board-ready outputs</strong><span>Executive risks, lifecycle status, and migration actions.</span></div>
+        <div class="home-chip"><strong>Adaptive parsing</strong><span>New cyber/network rows are automatically detected.</span></div>
+        <div class="home-chip"><strong>Export ready</strong><span>Download Word/PDF after workbook load.</span></div>
+      </div>
+      <button id="home-upload" class="primary">Upload workbook to start</button>
+    </section>
+
+    <div id="dashboard-view" class="hidden">
+      <section class="card status-row">
+        <div id="status">Waiting for workbook upload.</div>
+        <div id="workbook-meta"></div>
+        <div id="report-link" class="muted"></div>
+      </section>
+
+      <section class="metrics" id="kpi-grid"></section>
+
+      <section class="card">
+        <h2>Executive Risk Flags</h2>
+        <div id="risk-list"></div>
+      </section>
+
+      <section class="card">
+        <h2>Priority 1: Migration Readiness Actions</h2>
+        <div id="migration-actions"></div>
+      </section>
+
+      <section class="card">
+        <h2>Priority 2: Lifecycle Management Status</h2>
+        <div id="lifecycle-summary"></div>
+      </section>
+
+      <section class="card">
+        <h2>Roadmap Critical Counts</h2>
+        <div class="metrics" id="critical-counts"></div>
+        <p class="muted" id="principles-note"></p>
+      </section>
+
+      <section class="card">
+        <h2>Data Infrastructure</h2>
+        <div id="data-infra-summary"></div>
+      </section>
+
+      <section class="card">
+        <h2>Network & Wi-Fi</h2>
+        <div id="network-summary"></div>
+      </section>
+
+      <section class="card">
+        <h2>Client Compute</h2>
+        <div id="client-summary"></div>
+      </section>
+
+      <section class="card">
+        <h2>Cyber Security</h2>
+        <div id="cyber-summary"></div>
+      </section>
+
+      <section class="card">
+        <h2>Core Application</h2>
+        <div id="core-summary"></div>
+      </section>
+
+      <section class="card">
+        <div class="sheet-head">
+          <h2>Sheet Explorer</h2>
+          <select id="sheet-select"></select>
+        </div>
+        <div id="sheet-info" class="muted"></div>
+        <div class="table-wrap">
+          <table id="sheet-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
