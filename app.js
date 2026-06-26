@@ -1786,6 +1786,98 @@ function buildExportHtml(mode = "web") {
     `)
     .join("");
 
+  function mapBasicsStatusLabel(statusText) {
+    const s = normKey(statusText);
+    if (!s || s === "unknown" || s === "tbc" || s === "to be confirmed") return "Unknown";
+    if (s.includes("in progress") || s.includes("partial") || s.includes("partially") || s.includes("remediation")) return "Partial";
+    if (s === "n/a" || s === "na" || s === "no") return "Not In Place";
+    if (s.includes("not implemented") || s.includes("not complete") || s.includes("not configured") || s.includes("missing") || s.includes("required")) return "Not In Place";
+    if (s === "yes" || s.includes("complete") || s.includes("implemented") || s.includes("configured") || s.includes("enabled")) return "In Place";
+    return "Unknown";
+  }
+
+  function findCyberControlsByKeywords(keywords) {
+    const keys = (keywords || []).map((k) => normKey(k)).filter((k) => k);
+    return (cyber.controls || []).filter((control) => {
+      const area = normKey(control.area);
+      return keys.some((key) => area.includes(key));
+    });
+  }
+
+  function aggregateBasicsStatus(controls) {
+    if (!controls.length) return "Unknown";
+    const labels = controls.map((control) => mapBasicsStatusLabel(control.status));
+    const hasInPlace = labels.includes("In Place");
+    const hasPartial = labels.includes("Partial");
+    const hasNot = labels.includes("Not In Place");
+    const hasUnknown = labels.includes("Unknown");
+    if (hasInPlace && !hasPartial && !hasNot && !hasUnknown) return "In Place";
+    if (hasNot && !hasInPlace && !hasPartial && !hasUnknown) return "Not In Place";
+    if (hasUnknown && !hasInPlace && !hasPartial && !hasNot) return "Unknown";
+    return "Partial";
+  }
+
+  function buildControlEvidence(controls) {
+    if (!controls.length) return "No matching control found in parsed cyber controls — validate in workbook.";
+    const preview = controls
+      .slice(0, 2)
+      .map((control) => `${control.area}: ${control.status || "Unknown"}`)
+      .join(" | ");
+    const extra = controls.length > 2 ? ` (+${controls.length - 2} more)` : "";
+    return `${preview}${extra}`;
+  }
+
+  const m365BackupControls = findCyberControlsByKeywords(["365 backup", "m365 backup", "microsoft 365 backup"]);
+  const emailSecurityControls = findCyberControlsByKeywords(["email security"]);
+  const mfaCaControls = findCyberControlsByKeywords(["mfa", "multi-factor", "multifactor", "conditional access"]);
+  const antiVirusControls = findCyberControlsByKeywords(["anti-virus", "antivirus", "endpoint protection", "defender", "sophos"]);
+  const rmmControls = findCyberControlsByKeywords(["rmm", "remote monitoring", "remote management"]);
+
+  const m365StatusRaw = cyber.m365BackupStatus || "Unknown";
+  const emailStatusRaw = cyber.emailSecurityStatus || "Unknown";
+
+  const brilliantBasicsRows = [
+    {
+      capability: "Microsoft 365 backup",
+      status: mapBasicsStatusLabel(m365StatusRaw),
+      evidence: m365BackupControls.length
+        ? buildControlEvidence(m365BackupControls)
+        : `Parsed field m365BackupStatus: ${m365StatusRaw}. No matching control row found — validate in workbook.`,
+    },
+    {
+      capability: "Email security",
+      status: mapBasicsStatusLabel(emailStatusRaw),
+      evidence: emailSecurityControls.length
+        ? buildControlEvidence(emailSecurityControls)
+        : `Parsed field emailSecurityStatus: ${emailStatusRaw}. No matching control row found — validate in workbook.`,
+    },
+    {
+      capability: "MFA / Conditional Access",
+      status: aggregateBasicsStatus(mfaCaControls),
+      evidence: buildControlEvidence(mfaCaControls),
+    },
+    {
+      capability: "Anti-virus",
+      status: aggregateBasicsStatus(antiVirusControls),
+      evidence: buildControlEvidence(antiVirusControls),
+    },
+    {
+      capability: "RMM",
+      status: aggregateBasicsStatus(rmmControls),
+      evidence: buildControlEvidence(rmmControls),
+    },
+  ];
+
+  const brilliantBasicsRowsHtml = brilliantBasicsRows
+    .map((row) => `
+      <tr>
+        <td>${escapeHtml(row.capability)}</td>
+        <td>${escapeHtml(row.status)}</td>
+        <td>${escapeHtml(row.evidence)}</td>
+      </tr>
+    `)
+    .join("");
+
   const sharedTopAssets = [
     { asset: "Physical server estate", ageSupport: `${infra.totalServers} servers / ${infra.ws2012} legacy OS`, risk: infraStatus, path: "Retain only critical local workloads and migrate feasible services to SaaS/Azure." },
     { asset: "Network switching", ageSupport: `Core ${network.core}, Edge ${network.edge}`, risk: networkStatus, path: "Phase core-first and edge refresh to support Wi-Fi 7 and modern uplinks." },
@@ -2172,6 +2264,11 @@ function buildExportHtml(mode = "web") {
           <tr><td>Migration readiness (Microsoft)</td><td>${tenancyStatus}</td><td>${msReadyPct} ready, ${migration.remediation} remediation items remain.</td></tr>
           <tr><td>Core application / A3</td><td>${coreStatus}</td><td>Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.</td></tr>
         </tbody>
+      </table>
+      <h3>Unleashed Brilliant Basics</h3>
+      <table>
+        <thead><tr><th>Control</th><th>Status</th><th>Evidence note</th></tr></thead>
+        <tbody>${brilliantBasicsRowsHtml}</tbody>
       </table>
     `, true)}
 
