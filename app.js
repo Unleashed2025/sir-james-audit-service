@@ -1,4 +1,9 @@
 const els = {
+  authGate: document.getElementById("auth-gate"),
+  appShell: document.getElementById("app-shell"),
+  accessPassword: document.getElementById("access-password"),
+  accessSubmit: document.getElementById("access-submit"),
+  accessError: document.getElementById("access-error"),
   homeView: document.getElementById("home-view"),
   dashboardView: document.getElementById("dashboard-view"),
   homeUpload: document.getElementById("home-upload"),
@@ -29,6 +34,8 @@ const els = {
 
 let workbook = null;
 let latestReport = null;
+const ACCESS_STATE_KEY = "audit-service-unlocked";
+const ACCESS_HASH_HEX = "cff2083f7f003ef5b8db6b8c8b43abaf68188c6ed1ea02d5d6b477f789d06ab0";
 
 els.fileInput.addEventListener("change", onUpload);
 if (els.homeUpload) els.homeUpload.addEventListener("click", () => els.fileInput.click());
@@ -36,6 +43,47 @@ els.sheetSelect.addEventListener("change", renderSheetTable);
 els.exportWeb.addEventListener("click", exportWeb);
 els.exportWord.addEventListener("click", exportWord);
 els.exportPdf.addEventListener("click", exportPdf);
+if (els.accessSubmit) els.accessSubmit.addEventListener("click", unlockAccess);
+if (els.accessPassword) {
+  els.accessPassword.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      unlockAccess();
+    }
+  });
+}
+initAccessGate();
+
+function setAccessState(unlocked) {
+  if (els.authGate) els.authGate.classList.toggle("hidden", unlocked);
+  if (els.appShell) els.appShell.classList.toggle("hidden", !unlocked);
+}
+
+function initAccessGate() {
+  const unlocked = sessionStorage.getItem(ACCESS_STATE_KEY) === "1";
+  setAccessState(unlocked);
+}
+
+async function unlockAccess() {
+  if (!els.accessPassword) return;
+  const entered = els.accessPassword.value || "";
+  const hash = await hashTextSha256(entered);
+  if (hash === ACCESS_HASH_HEX) {
+    sessionStorage.setItem(ACCESS_STATE_KEY, "1");
+    if (els.accessError) els.accessError.classList.add("hidden");
+    els.accessPassword.value = "";
+    setAccessState(true);
+    return;
+  }
+  if (els.accessError) els.accessError.classList.remove("hidden");
+}
+
+async function hashTextSha256(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const arr = Array.from(new Uint8Array(digest));
+  return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 async function onUpload(event) {
   const file = event.target.files && event.target.files[0];
@@ -1454,7 +1502,7 @@ async function exportPdf() {
   doc.setTextColor(147, 197, 253);
   doc.setFont("helvetica", "bold");
   const focusY = introY + (introLines.length * 16) + 28;
-  doc.text("Audit focus: Infrastructure â€¢ Cyber Security â€¢ Migration Readiness", 40, focusY);
+  doc.text("Audit focus: Infrastructure • Cyber Security • Migration Readiness", 40, focusY);
 
   const chapters = [
     {
@@ -1492,7 +1540,7 @@ async function exportPdf() {
       ],
     },
     {
-      title: "Migration Readiness â€“ Actions",
+      title: "Migration Readiness – Actions",
       intro: "Only remediation-required migration actions are listed below so this section can operate as a practical cutover control register with clear immediate actions.",
       head: ["Area", "Status", "Main risk / gap", "Immediate action"],
       body: (migration.items || [])
@@ -1501,7 +1549,7 @@ async function exportPdf() {
         .map((item) => [item.area, item.stage, item.check, item.action]),
     },
     {
-      title: "Data Infrastructure â€“ Servers, SAN and Storage",
+      title: "Data Infrastructure – Servers, SAN and Storage",
       intro: "The data infrastructure position should be managed against the agreed cloud-first approach: retire or migrate workloads where viable, and replace only where local hosting remains essential.",
       head: ["Infrastructure item", "Position", "Main concern", "Recommended response"],
       body: [
@@ -1511,7 +1559,7 @@ async function exportPdf() {
       ],
     },
     {
-      title: "Network and Wi-Fi â€“ Refresh Direction",
+      title: "Network and Wi-Fi – Refresh Direction",
       intro: "Network and wireless refresh should be coordinated as one programme to reach Wi-Fi 7 readiness, including 10Gb-capable core, 2.5Gb edge and modern AP coverage.",
       head: ["Network area", "Position", "Main concern", "Recommended response"],
       body: [
@@ -1521,7 +1569,7 @@ async function exportPdf() {
       ],
     },
     {
-      title: "Client Compute â€“ Estate and Lifecycle",
+      title: "Client Compute – Estate and Lifecycle",
       intro: "For client compute, the primary risk driver is unsupported operating systems. Devices on unsupported Windows versions should be treated as priority replacement candidates.",
       head: ["Device area", "Position", "Main concern", "Recommended response"],
       body: [
@@ -1767,7 +1815,7 @@ function buildExportHtml(mode = "web") {
       <div class="cover-school">Sir James Smith's School</div>
       <div class="cover-copy">${escapeHtml(thankYouLine)} This report provides a structured narrative of the current estate, key risks, decisions required and the recommended remediation roadmap.</div>
       <div class="cover-focus">Audit focus</div>
-      <div class="cover-focus-sub">Infrastructure â€¢ Cyber Security â€¢ Migration Readiness</div>
+      <div class="cover-focus-sub">Infrastructure • Cyber Security • Migration Readiness</div>
     </section>
 
     <div class="meta-line">${escapeHtml(els.workbookMeta.textContent || "")} | Generated: ${new Date().toLocaleString()}</div>
@@ -1814,7 +1862,7 @@ function buildExportHtml(mode = "web") {
       </table>
     `)}
 
-    ${chapterPage(4, "Migration Readiness â€“ Actions", `
+    ${chapterPage(4, "Migration Readiness – Actions", `
       <p class="narrative">This chapter intentionally shows remediation-only migration items so project focus remains on what must be closed before a safe and controlled cutover.</p>
       <table>
         <thead><tr><th>Area</th><th>Status</th><th>Main risk / gap</th><th>Immediate action</th></tr></thead>
@@ -1822,7 +1870,7 @@ function buildExportHtml(mode = "web") {
       </table>
     `)}
 
-    ${chapterPage(5, "Data Infrastructure â€“ Servers, SAN and Storage", `
+    ${chapterPage(5, "Data Infrastructure – Servers, SAN and Storage", `
       <p class="narrative">Data infrastructure decisions should balance supportability, workload dependency and migration direction. The default approach should be to reduce local hosting where services can move to SaaS or Azure.</p>
       <table>
         <thead><tr><th>Infrastructure item</th><th>Position</th><th>Main concern</th><th>Recommended response</th></tr></thead>
@@ -1834,7 +1882,7 @@ function buildExportHtml(mode = "web") {
       </table>
     `)}
 
-    ${chapterPage(6, "Network and Wi-Fi â€“ Refresh Direction", `
+    ${chapterPage(6, "Network and Wi-Fi – Refresh Direction", `
       <p class="narrative">The network and wireless estate should be modernised as a single programme to achieve Wi-Fi 7 readiness, with core, edge and AP upgrades aligned by dependency.</p>
       <table>
         <thead><tr><th>Network area</th><th>Position</th><th>Main concern</th><th>Recommended response</th></tr></thead>
@@ -1846,7 +1894,7 @@ function buildExportHtml(mode = "web") {
       </table>
     `)}
 
-    ${chapterPage(7, "Client Compute â€“ Estate and Lifecycle", `
+    ${chapterPage(7, "Client Compute – Estate and Lifecycle", `
       <p class="narrative">For client compute, unsupported operating systems are the primary replacement trigger. Lifecycle governance should be tied to OS supportability rather than break/fix replacement alone.</p>
       <table>
         <thead><tr><th>Device area</th><th>Position</th><th>Main concern</th><th>Recommended response</th></tr></thead>
