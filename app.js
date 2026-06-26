@@ -121,6 +121,24 @@ function showDashboardView() {
   if (els.dashboardView) els.dashboardView.classList.remove("hidden");
 }
 
+function ensureBrilliantBasicsContainer() {
+  if (els.brilliantBasicsSummary) return;
+  const dashboard = els.dashboardView;
+  if (!dashboard) return;
+
+  const sheetExplorer = els.sheetSelect ? els.sheetSelect.closest(".card") : null;
+  const section = document.createElement("section");
+  section.className = "card";
+  section.innerHTML = `
+    <h2>Unleashed Brilliant Basics Alignment</h2>
+    <div id="brilliant-basics-summary"></div>
+  `;
+
+  if (sheetExplorer && sheetExplorer.parentNode === dashboard) dashboard.insertBefore(section, sheetExplorer);
+  else dashboard.appendChild(section);
+  els.brilliantBasicsSummary = section.querySelector("#brilliant-basics-summary");
+}
+
 function renderVmOsStatus(vmOs) {
   if (!vmOs) return "";
   return `
@@ -188,6 +206,7 @@ function lifecycleFlagSummary(lifecycle) {
 }
 
 function renderDashboard() {
+  ensureBrilliantBasicsContainer();
   const dashboardRows = getRows("Dashboard");
   const infraRows = getRows("Data Infrastructure");
   const networkRows = getRows("Network & WiFi");
