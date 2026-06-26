@@ -1884,37 +1884,54 @@ function buildExportHtml(mode = "web") {
     const m = model || {};
     const effortBand = (m.costEffort && m.costEffort.band) ? m.costEffort.band : "Medium";
     const effortWhy = (m.costEffort && m.costEffort.rationale) ? m.costEffort.rationale : "Cross-team coordination and evidence gathering are needed.";
+    const sections = [
+      {
+        title: "Current State",
+        content: renderBulletList(m.currentState, "Current-state evidence is still being finalised."),
+      },
+      {
+        title: "What This Means",
+        content: `<p class="narrative">${escapeHtml(m.whatThisMeans || "This area needs structured remediation and clearer ownership before it can be considered low risk.")}</p>`,
+      },
+      {
+        title: "Priority Actions (Now / 90 days / 12 months)",
+        content: renderPriorityActionsTable(m.priorityActions),
+      },
+      {
+        title: "Dependencies & Owners",
+        content: renderDependenciesOwnersTable(m.dependencies),
+      },
+      {
+        title: "Risk if Delayed",
+        content: `<p class="narrative">${escapeHtml(m.riskIfDelayed || "Delays increase the chance of reactive incidents, migration slippage and governance exceptions.")}</p>`,
+      },
+      {
+        title: "Cost / Effort Band",
+        content: `<p class="narrative"><strong>${escapeHtml(effortBand)}</strong> — ${escapeHtml(effortWhy)}</p>`,
+      },
+      {
+        title: "Success Criteria",
+        content: renderBulletList(m.successCriteria, "Named owners and dated actions are in place with measurable progress tracking."),
+      },
+      {
+        title: "Assumptions to Validate",
+        content: renderBulletList(m.assumptions, "Source data, ownership and risk assumptions are confirmed with current evidence."),
+      },
+      {
+        title: "Optional: Top 5 assets/systems",
+        content: renderTopAssetsTable(m.topAssets),
+      },
+      {
+        title: "Optional: Before vs Target State",
+        content: renderBeforeTargetTable(m.beforeTarget),
+      },
+    ];
     return `
       <div class="expansion-section">
-        <h3>Current State</h3>
-        ${renderBulletList(m.currentState, "Current-state evidence is still being finalised.")}
-
-        <h3>What This Means</h3>
-        <p class="narrative">${escapeHtml(m.whatThisMeans || "This area needs structured remediation and clearer ownership before it can be considered low risk.")}</p>
-
-        <h3>Priority Actions</h3>
-        ${renderPriorityActionsTable(m.priorityActions)}
-
-        <h3>Dependencies & Owners</h3>
-        ${renderDependenciesOwnersTable(m.dependencies)}
-
-        <h3>Risk if Delayed</h3>
-        <p class="narrative">${escapeHtml(m.riskIfDelayed || "Delays increase the chance of reactive incidents, migration slippage and governance exceptions.")}</p>
-
-        <h3>Cost / Effort Band</h3>
-        <p class="narrative"><strong>${escapeHtml(effortBand)}</strong> — ${escapeHtml(effortWhy)}</p>
-
-        <h3>Success Criteria</h3>
-        ${renderBulletList(m.successCriteria, "Named owners and dated actions are in place with measurable progress tracking.")}
-
-        <h3>Assumptions to Validate</h3>
-        ${renderBulletList(m.assumptions, "Source data, ownership and risk assumptions are confirmed with current evidence.")}
-
-        <h3>Top 5 assets / systems</h3>
-        ${renderTopAssetsTable(m.topAssets)}
-
-        <h3>Before vs Target state</h3>
-        ${renderBeforeTargetTable(m.beforeTarget)}
+        ${sections.map((section) => `
+          <h3>${section.title}</h3>
+          ${section.content}
+        `).join("")}
       </div>
     `;
   }
