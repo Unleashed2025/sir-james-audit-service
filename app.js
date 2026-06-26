@@ -2634,8 +2634,8 @@ function buildExportHtml(mode = "web") {
   const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
   const logoBlueUrl = new URL("assets/unleashed-logo-blue.png", window.location.href).href;
   const coverLogoUrl = isWord ? logoBlueUrl : logoWhiteUrl;
-  const coverLogoWidth = isWord ? 760 : 460;
-  const coverLogoHeight = isWord ? 167 : 101;
+  const coverLogoWidth = isWord ? 646 : 460;
+  const coverLogoHeight = isWord ? 142 : 101;
   const coverLogoInlineStyle = `width:${coverLogoWidth}px;height:${coverLogoHeight}px;`;
   const executiveSnapshot = computeExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
 
@@ -2985,7 +2985,7 @@ function buildExportHtml(mode = "web") {
     }
     .cover-logo {
       display: block;
-      width: ${isWord ? "760px" : "460px"};
+      width: ${isWord ? "646px" : "460px"};
       height: auto;
       max-width: 100%;
     }
