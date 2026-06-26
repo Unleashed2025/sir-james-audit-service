@@ -2203,7 +2203,6 @@ function buildExportHtml(mode = "web") {
           <tr><td>Core application / A3</td><td>${coreStatus}</td><td>Configured-but-usage-unknown capabilities: ${core.configuredUnknown}.</td></tr>
         </tbody>
       </table>
-      ${renderChapterExpansion(chapterModels.executive)}
     `, true)}
 
     ${chapterPage(2, "RAG Summary", `
@@ -2219,7 +2218,6 @@ function buildExportHtml(mode = "web") {
           <tr><td>Core Application / A3</td><td>${coreStatus}</td><td>A3 optimisation and feature utilisation review remains open.</td></tr>
         </tbody>
       </table>
-      ${renderChapterExpansion(chapterModels.rag)}
     `)}
 
     ${chapterPage(3, "Lifecycle and Critical Milestones", `
@@ -2233,7 +2231,6 @@ function buildExportHtml(mode = "web") {
           <tr><td>End of service life</td><td>${endServiceLife}</td><td>Higher risk of reactive failure and diminishing support options.</td></tr>
         </tbody>
       </table>
-      ${renderChapterExpansion(chapterModels.lifecycle)}
     `)}
 
     ${chapterPage(4, "Migration Readiness – Actions", `
@@ -2242,7 +2239,6 @@ function buildExportHtml(mode = "web") {
         <thead><tr><th>Area</th><th>Status</th><th>Main risk / gap</th><th>Immediate action</th></tr></thead>
         <tbody>${remediationRows || `<tr><td colspan="4">No open migration actions.</td></tr>`}</tbody>
       </table>
-      ${renderChapterExpansion(chapterModels.migration)}
     `)}
 
     ${chapterPage(5, "Data Infrastructure – Servers, SAN and Storage", `
