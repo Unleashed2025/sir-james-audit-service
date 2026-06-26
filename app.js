@@ -1882,8 +1882,6 @@ function buildExportHtml(mode = "web") {
 
   function renderChapterExpansion(model) {
     const m = model || {};
-    const effortBand = (m.costEffort && m.costEffort.band) ? m.costEffort.band : "Medium";
-    const effortWhy = (m.costEffort && m.costEffort.rationale) ? m.costEffort.rationale : "Cross-team coordination and evidence gathering are needed.";
     const sections = [
       {
         title: "Current State",
@@ -1896,34 +1894,6 @@ function buildExportHtml(mode = "web") {
       {
         title: "Priority Actions (Now / 90 days / 12 months)",
         content: renderPriorityActionsTable(m.priorityActions),
-      },
-      {
-        title: "Dependencies & Owners",
-        content: renderDependenciesOwnersTable(m.dependencies),
-      },
-      {
-        title: "Risk if Delayed",
-        content: `<p class="narrative">${escapeHtml(m.riskIfDelayed || "Delays increase the chance of reactive incidents, migration slippage and governance exceptions.")}</p>`,
-      },
-      {
-        title: "Cost / Effort Band",
-        content: `<p class="narrative"><strong>${escapeHtml(effortBand)}</strong> — ${escapeHtml(effortWhy)}</p>`,
-      },
-      {
-        title: "Success Criteria",
-        content: renderBulletList(m.successCriteria, "Named owners and dated actions are in place with measurable progress tracking."),
-      },
-      {
-        title: "Assumptions to Validate",
-        content: renderBulletList(m.assumptions, "Source data, ownership and risk assumptions are confirmed with current evidence."),
-      },
-      {
-        title: "Optional: Top 5 assets/systems",
-        content: renderTopAssetsTable(m.topAssets),
-      },
-      {
-        title: "Optional: Before vs Target State",
-        content: renderBeforeTargetTable(m.beforeTarget),
       },
     ];
     return `
