@@ -1835,9 +1835,18 @@ async function exportPdf() {
 
   doc.setFillColor(10, 48, 88);
   doc.rect(0, 0, pageWidth, pageHeight, "F");
-  const pdfLogoDataUrl = await loadImageAsDataUrl(logoWhiteUrl);
+  let pdfLogoDataUrl = "";
+  try {
+    pdfLogoDataUrl = await loadImageAsDataUrl(logoWhiteUrl);
+  } catch (_) {
+    pdfLogoDataUrl = "";
+  }
   if (pdfLogoDataUrl) {
-    doc.addImage(pdfLogoDataUrl, "PNG", 40, 28, 260, 54);
+    try {
+      doc.addImage(pdfLogoDataUrl, "PNG", 40, 28, 260, 54);
+    } catch (_) {
+      // Keep PDF export working even if logo rendering fails.
+    }
   }
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
@@ -2586,7 +2595,7 @@ function buildExportHtml(mode = "web") {
     }
     .cover-logo {
       display: block;
-      width: ${isWord ? "440px" : "460px"};
+      width: ${isWord ? "300px" : "460px"};
       height: auto;
       max-width: 100%;
     }
