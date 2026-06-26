@@ -1032,6 +1032,17 @@ function parseSoftware(rows) {
 
   const start = headerIdx >= 0 ? headerIdx + 1 : 0;
   const entries = [];
+  const statusHints = [
+    "yes", "no", "n/a", "na", "unknown", "in progress", "partial", "partially",
+    "not implemented", "not configured", "complete", "configured", "implemented",
+    "enabled", "disabled", "missing", "required",
+  ];
+  const looksLikeStatus = (value) => {
+    const key = normKey(value);
+    if (!key) return false;
+    return statusHints.some((hint) => key === hint || key.includes(hint));
+  };
+
   for (let i = start; i < rows.length; i++) {
     const row = rows[i] || [];
     const cells = row.map((cell) => String(cell || "").trim());
@@ -1047,9 +1058,19 @@ function parseSoftware(rows) {
     const keyName = normKey(name);
     if (keyName === "software" || keyName === "application" || keyName === "product") continue;
 
+    let statusValue = statusIdx >= 0 ? String(row[statusIdx] || "").trim() : "";
+    if (!statusValue || !looksLikeStatus(statusValue)) {
+      const inferred = cells.find((cell, idx) => {
+        if (!cell) return false;
+        if (idx === nameIdx && normKey(cell) === keyName) return false;
+        return looksLikeStatus(cell);
+      });
+      statusValue = inferred || statusValue;
+    }
+
     entries.push({
       name,
-      status: statusIdx >= 0 ? String(row[statusIdx] || "").trim() : "",
+      status: statusValue,
       category: categoryIdx >= 0 ? String(row[categoryIdx] || "").trim() : "",
       vendor: vendorIdx >= 0 ? String(row[vendorIdx] || "").trim() : "",
     });
@@ -1338,7 +1359,7 @@ function mapBasicsStatusLabel(statusText) {
   const s = normKey(statusText);
   if (!s || s === "unknown" || s === "tbc" || s === "to be confirmed") return "Unknown";
   if (s.includes("in progress") || s.includes("partial") || s.includes("partially") || s.includes("remediation")) return "Partial";
-  if (s === "n/a" || s === "na" || s === "no") return "Not In Place";
+  if (s === "n/a" || s === "na" || s === "no" || s.startsWith("no ") || s.includes(" no ") || s.includes("none")) return "Not In Place";
   if (s.includes("not implemented") || s.includes("not complete") || s.includes("not configured") || s.includes("missing") || s.includes("required")) return "Not In Place";
   if (s === "yes" || s.includes("complete") || s.includes("implemented") || s.includes("configured") || s.includes("enabled") || s.includes("active")) return "In Place";
   return "Unknown";
