@@ -2634,6 +2634,8 @@ function buildExportHtml(mode = "web") {
   const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
   const logoBlueUrl = new URL("assets/unleashed-logo-blue.png", window.location.href).href;
   const coverLogoUrl = isWord ? logoBlueUrl : logoWhiteUrl;
+  const coverLogoWidth = isWord ? 95 : 460;
+  const coverLogoInlineStyle = `width:${coverLogoWidth}px;max-width:${coverLogoWidth}px;height:auto;`;
   const executiveSnapshot = computeExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
 
   const infraStatus = (infra.ws2012 > 0 || infra.serverCritical > 0) ? "Red" : "Amber";
@@ -3078,7 +3080,7 @@ function buildExportHtml(mode = "web") {
 <body class="${isWord ? "word-export" : (isPdf ? "pdf-export" : "web-export")}">
   <div class="page">
     <section class="cover">
-      <div class="cover-brand"><img class="cover-logo" src="${escapeAttr(coverLogoUrl)}" alt="Unleashed"></div>
+      <div class="cover-brand"><img class="cover-logo" src="${escapeAttr(coverLogoUrl)}" alt="Unleashed" width="${coverLogoWidth}" style="${escapeAttr(coverLogoInlineStyle)}"></div>
       <div class="cover-title">IT Audit Summary, Findings and Roadmap</div>
       <div class="cover-school">${escapeHtml(executiveSnapshot.school || "Client Site")}</div>
       <div class="cover-copy">${escapeHtml(thankYouLine)} This report provides a structured narrative of the current estate, key risks, decisions required and the recommended remediation roadmap.</div>
