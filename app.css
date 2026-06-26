@@ -541,6 +541,7 @@ th {
 #cyber-summary,
 #core-summary,
 #migration-summary,
+#executive-snapshot,
 #brilliant-basics-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -553,6 +554,7 @@ th {
 #cyber-summary p,
 #core-summary p,
 #migration-summary p,
+#executive-snapshot p,
 #brilliant-basics-summary p {
   margin: 0;
   border: 1px solid var(--line);
@@ -569,6 +571,7 @@ th {
 #cyber-summary p::before,
 #core-summary p::before,
 #migration-summary p::before,
+#executive-snapshot p::before,
 #brilliant-basics-summary p::before {
   content: "";
   position: absolute;
@@ -586,6 +589,7 @@ th {
 #cyber-summary p.muted,
 #core-summary p.muted,
 #migration-summary p.muted,
+#executive-snapshot p.muted,
 #brilliant-basics-summary p.muted {
   background: linear-gradient(180deg, #f7faff, #f1f6ff);
   border-style: dashed;
