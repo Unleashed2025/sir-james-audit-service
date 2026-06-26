@@ -24,6 +24,7 @@ const els = {
   clientSummary: document.getElementById("client-summary"),
   cyberSummary: document.getElementById("cyber-summary"),
   coreSummary: document.getElementById("core-summary"),
+  executiveSnapshot: document.getElementById("executive-snapshot"),
   brilliantBasicsSummary: document.getElementById("brilliant-basics-summary"),
   sheetSelect: document.getElementById("sheet-select"),
   sheetInfo: document.getElementById("sheet-info"),
@@ -208,6 +209,7 @@ function lifecycleFlagSummary(lifecycle) {
 function renderDashboard() {
   ensureBrilliantBasicsContainer();
   const dashboardRows = getRows("Dashboard");
+  const overviewRows = getRowsByNamePatterns(["high level", "overview", "summary"]);
   const infraRows = getRows("Data Infrastructure");
   const networkRows = getRows("Network & WiFi");
   const clientRows = getRows("Client Compute");
@@ -218,6 +220,7 @@ function renderDashboard() {
   const questionsRows = getRows("Questions to Confirm");
 
   const dashboard = parseDashboard(dashboardRows);
+  const executiveMeta = parseExecutiveMeta(overviewRows, dashboardRows);
   const infra = parseDataInfrastructure(infraRows);
   const network = parseNetwork(networkRows);
   const client = parseClient(clientRows);
@@ -231,8 +234,9 @@ function renderDashboard() {
     : "-";
   const cyberPctValue = dashboard.cyberPct !== "-" ? dashboard.cyberPct : cyberPctFallback;
 
-  latestReport = { dashboard, infra, network, client, cyber, migration, core, software, questions };
+  latestReport = { dashboard, executiveMeta, infra, network, client, cyber, migration, core, software, questions };
 
+  renderExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
   renderKpis(dashboard, infra, network, client, cyber, migration, questions);
   renderRisks(infra, cyber, migration, client, core);
   renderMigrationActions(migration);
@@ -412,6 +416,91 @@ function renderDashboard() {
       </div>
     `;
   }
+}
+
+function getRowsByNamePatterns(patterns) {
+  if (!workbook || !Array.isArray(workbook.SheetNames)) return [];
+  const targetNames = workbook.SheetNames.filter((name) => {
+    const normalized = normKey(name);
+    return patterns.some((pattern) => normalized.includes(normKey(pattern)));
+  });
+  if (!targetNames.length) return [];
+  const combined = [];
+  for (const sheetName of targetNames) {
+    const rows = getRows(sheetName);
+    if (rows.length) combined.push(...rows);
+  }
+  return combined;
+}
+
+function parseExecutiveMeta(overviewRows, dashboardRows) {
+  const out = {
+    school: "-",
+    reportDate: "-",
+    migrationTarget: "-",
+    topPriorities: [],
+  };
+  const rows = [...(overviewRows || []), ...(dashboardRows || [])];
+  const priorities = [];
+  for (const row of rows) {
+    if (!Array.isArray(row) || !row.length) continue;
+    for (let c = 0; c < row.length - 1; c += 1) {
+      const key = normKey(row[c]);
+      const value = formatCell(row[c + 1]);
+      if (!key || !value || value === "-") continue;
+      if (
+        out.school === "-" &&
+        (key.includes("school") || key.includes("academy") || key.includes("site name") || key.includes("organisation"))
+      ) out.school = value;
+      if (
+        out.reportDate === "-" &&
+        (key.includes("report date") || key.includes("audit date") || key === "date" || key.includes("date of audit"))
+      ) out.reportDate = value;
+      if (
+        out.migrationTarget === "-" &&
+        (key.includes("migration target") || key.includes("target migration") || key.includes("migration date") || key.includes("deadline"))
+      ) out.migrationTarget = value;
+      if (key.includes("priority")) priorities.push(value);
+    }
+  }
+  out.topPriorities = Array.from(new Set(priorities.map((p) => String(p || "").trim()).filter(Boolean))).slice(0, 6);
+  return out;
+}
+
+function buildExecutivePriorities(meta, infra, client, cyber, migration) {
+  const priorities = [];
+  if (infra.ws2012 > 0) priorities.push(`Replace or upgrade ${infra.ws2012} Windows Server 2012 workloads immediately.`);
+  if (migration.remediation > 0) priorities.push(`Close ${migration.remediation} Microsoft migration remediation actions before cutover.`);
+  if (cyber.naCount > 0) priorities.push(`Remediate ${cyber.naCount} cyber controls marked N/A or not implemented.`);
+  if (client.windows10 > 0) priorities.push(`Plan replacement of ${client.windows10} Windows 10 devices ahead of support end.`);
+  priorities.push(...(meta.topPriorities || []));
+  return Array.from(new Set(priorities.map((item) => String(item || "").trim()).filter(Boolean))).slice(0, 3);
+}
+
+function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration) {
+  if (!els.executiveSnapshot) return;
+  const msReadyValue = migration.total > 0
+    ? `${((migration.ready / migration.total) * 100).toFixed(1)}%`
+    : (dashboard.msReadyPct !== "-" ? dashboard.msReadyPct : "-");
+  const criticalRiskCount =
+    (infra.ws2012 > 0 ? 1 : 0) +
+    (String(cyber.cloudBackupStatus || "").toLowerCase() === "n/a" ? 1 : 0) +
+    (migration.remediation > 0 ? 1 : 0) +
+    (client.windows10 > 0 ? 1 : 0);
+  const immediateReplacementCandidates = infra.serverCritical + client.windows10;
+  const topPriorities = buildExecutivePriorities(meta, infra, client, cyber, migration);
+  const fallbackMigrationTarget = "Aug 2026 target (confirm in workbook timeline)";
+  const priorityText = topPriorities.length ? topPriorities.join(" | ") : "No explicit priorities found on overview sheets.";
+
+  els.executiveSnapshot.innerHTML = `
+    <p><strong>School:</strong> ${escapeHtml(meta.school || "-")}</p>
+    <p><strong>Report date:</strong> ${escapeHtml(meta.reportDate || "-")}</p>
+    <p><strong>Microsoft readiness:</strong> ${escapeHtml(msReadyValue)}</p>
+    <p><strong>Critical risk flags:</strong> <span class="${criticalRiskCount > 0 ? "danger" : "ok"}">${criticalRiskCount}</span></p>
+    <p><strong>Immediate replacement candidates:</strong> <span class="${immediateReplacementCandidates > 0 ? "danger" : "ok"}">${immediateReplacementCandidates}</span></p>
+    <p><strong>Migration target:</strong> ${escapeHtml(meta.migrationTarget !== "-" ? meta.migrationTarget : fallbackMigrationTarget)}</p>
+    <p><strong>Top priorities:</strong> ${escapeHtml(priorityText)}</p>
+  `;
 }
 
 function parseDashboard(rows) {
