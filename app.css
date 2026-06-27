@@ -548,6 +548,11 @@ th {
   gap: 9px;
 }
 
+#executive-snapshot {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
 #data-infra-summary p,
 #network-summary p,
 #client-summary p,
