@@ -496,7 +496,7 @@ function renderDashboard() {
       `Email security (${budget.userCountLabel} users) x £0.80 = ${formatCurrencyMonthly(budget.acronisEmailSecurityMonthly)}`,
       `Microsoft 365 backup (${budget.userCountLabel} users) x £0.75 = ${formatCurrencyMonthly(budget.acronisM365BackupMonthly)}`,
       `Security awareness training (${budget.userCountLabel} users) x £1.20 = ${formatCurrencyMonthly(budget.acronisSatMonthly)}`,
-      `ISPM (${budget.userCountLabel} users) x £0.50 = ${formatCurrencyMonthly(budget.acronisIspmMonthly)}`,
+      `ISPM (${budget.userCountLabel} users) x £0.58 = ${formatCurrencyMonthly(budget.acronisIspmMonthly)}`,
       `DLP (${budget.userCountLabel} users) x £1.20 = ${formatCurrencyMonthly(budget.acronisDlpMonthly)}`,
       `Cloud app protection (${budget.userCountLabel} users) x £1.10 = ${formatCurrencyMonthly(budget.acronisCloudAppsMonthly)}`,
       `Cloud backup (${budget.cloudBackupGbLabel} GB${budget.hasCloudBackupGb ? "" : " estimated"}) x £0.10 = ${formatCurrencyMonthly(budget.acronisCloudBackupMonthly)}`,
@@ -513,10 +513,10 @@ function renderDashboard() {
       <p class="budget-kpi"><strong>Client CAPEX:</strong> ${escapeHtml(formatCurrency(budget.clientCapex))}</p>
       <p class="budget-kpi"><strong>Server CAPEX:</strong> ${escapeHtml(formatCurrency(budget.serverCapex))}</p>
       <p class="budget-kpi"><strong>Total CAPEX:</strong> ${escapeHtml(formatCurrency(budget.totalCapexMin))} to ${escapeHtml(formatCurrency(budget.totalCapexMax))}</p>
-      <p class="budget-kpi"><strong>Acronis OPEX:</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))} <span class="budget-inline-note">(monthly)</span></p>
-      <p class="budget-kpi"><strong>A5 OPEX:</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))} <span class="budget-inline-note">(teachers only: ${escapeHtml(budget.teacherCountLabel)} x £8/month, students excluded)</span></p>
-      <p class="budget-kpi"><strong>Migration assessment:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))} <span class="budget-inline-note">(higher of £7,200 or £7.20/user)</span></p>
-      <details class="details-list lifecycle-dropdown" open>
+      <p class="budget-kpi"><strong>Acronis OPEX:</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
+      <p class="budget-kpi"><strong>A5 OPEX:</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
+      <p class="budget-kpi"><strong>Migration assessment:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
+      <details class="details-list lifecycle-dropdown budget-full-row" open>
         <summary><strong>Network infrastructure CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Network CAPEX items", "stage-progress", capexNetworkItems, "No network CAPEX items.")}
@@ -524,7 +524,7 @@ function renderDashboard() {
           ${renderBoardColumn("Network CAPEX assumptions", "stage-other", capexNetworkRules, "No network CAPEX assumptions listed.")}
         </div>
       </details>
-      <details class="details-list lifecycle-dropdown" open>
+      <details class="details-list lifecycle-dropdown budget-full-row" open>
         <summary><strong>Server infrastructure CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Server CAPEX items", "stage-remediation", capexServerItems, "No server CAPEX items.")}
@@ -532,7 +532,7 @@ function renderDashboard() {
           ${renderBoardColumn("Server CAPEX assumptions", "stage-other", capexServerRules, "No server CAPEX assumptions listed.")}
         </div>
       </details>
-      <details class="details-list lifecycle-dropdown" open>
+      <details class="details-list lifecycle-dropdown budget-full-row" open>
         <summary><strong>Client compute CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Client CAPEX items", "stage-progress", capexClientItems, "No client CAPEX items.")}
@@ -548,7 +548,7 @@ function renderDashboard() {
           ${renderBoardColumn("Unpriced monthly items", "stage-remediation", acronisUnpricedItems, "No unpriced monthly items.")}
         </div>
       </details>
-      <p class="muted budget-full-row budget-footer"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB. Where GB values are not present in workbook data, this model uses explicit estimates of 3,000GB cloud backup and 256GB hot compute. Local backup/recovery are modelled at £0 where cloud/local prerequisites apply. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}${budget.hasCloudBackupGb ? "" : " (estimated)"}, Hot DR GB ${budget.hotDrComputeGbLabel}${budget.hasHotDrComputeGb ? "" : " (estimated)"}, Mailboxes ${budget.mailboxCountLabel}.</p>
+      <p class="muted budget-full-row budget-footer"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB. Where GB values are not present in workbook data, this model uses explicit estimates of 3,000GB cloud backup and 256GB hot compute. Local backup/recovery are modelled at £0 where cloud/local prerequisites apply. A5 OPEX is teachers only (${budget.teacherCountLabel} x £8/month; students excluded). Migration estimate uses the higher of £7,200 or £7.20 per user. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}${budget.hasCloudBackupGb ? "" : " (estimated)"}, Hot DR GB ${budget.hotDrComputeGbLabel}${budget.hasHotDrComputeGb ? "" : " (estimated)"}, Mailboxes ${budget.mailboxCountLabel}.</p>
     `;
   }
 }
@@ -700,7 +700,7 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
   const acronisEmailSecurityMonthly = (users || 0) * 0.8;
   const acronisM365BackupMonthly = (users || 0) * 0.75;
   const acronisSatMonthly = (users || 0) * 1.2;
-  const acronisIspmMonthly = (users || 0) * 0.5;
+  const acronisIspmMonthly = (users || 0) * 0.58;
   const acronisDlpMonthly = (users || 0) * 1.2;
   const acronisCloudAppsMonthly = (users || 0) * 1.1;
   const hasCloudBackupGb = counts.cloudBackupGb !== null;
