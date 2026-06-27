@@ -509,13 +509,13 @@ function renderDashboard() {
     ];
 
     els.budgetSummary.innerHTML = `
-      <p><strong>Network refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.networkCapexMin))} to ${escapeHtml(formatCurrency(budget.networkCapexMax))}</p>
-      <p><strong>Client refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.clientCapex))}</p>
-      <p><strong>Server refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.serverCapex))}</p>
-      <p><strong>Total CAPEX estimate (one-off):</strong> ${escapeHtml(formatCurrency(budget.totalCapexMin))} to ${escapeHtml(formatCurrency(budget.totalCapexMax))}</p>
-      <p><strong>Acronis OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
-      <p><strong>A5 OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
-      <p><strong>Migration estimate:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
+      <p class="budget-kpi"><strong>Network CAPEX:</strong> ${escapeHtml(formatCurrency(budget.networkCapexMin))} to ${escapeHtml(formatCurrency(budget.networkCapexMax))}</p>
+      <p class="budget-kpi"><strong>Client CAPEX:</strong> ${escapeHtml(formatCurrency(budget.clientCapex))}</p>
+      <p class="budget-kpi"><strong>Server CAPEX:</strong> ${escapeHtml(formatCurrency(budget.serverCapex))}</p>
+      <p class="budget-kpi"><strong>Total CAPEX:</strong> ${escapeHtml(formatCurrency(budget.totalCapexMin))} to ${escapeHtml(formatCurrency(budget.totalCapexMax))}</p>
+      <p class="budget-kpi"><strong>Acronis OPEX:</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))} <span class="budget-inline-note">(monthly)</span></p>
+      <p class="budget-kpi"><strong>A5 OPEX:</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))} <span class="budget-inline-note">(teachers only: ${escapeHtml(budget.teacherCountLabel)} x £8/month, students excluded)</span></p>
+      <p class="budget-kpi"><strong>Migration assessment:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))} <span class="budget-inline-note">(higher of £7,200 or £7.20/user)</span></p>
       <details class="details-list lifecycle-dropdown" open>
         <summary><strong>Network infrastructure CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
@@ -540,7 +540,7 @@ function renderDashboard() {
           ${renderBoardColumn("Client CAPEX assumptions", "stage-other", capexClientRules, "No client CAPEX assumptions listed.")}
         </div>
       </details>
-      <details class="details-list lifecycle-dropdown" open>
+      <details class="details-list lifecycle-dropdown budget-full-row" open>
         <summary><strong>Cyber controls OPEX breakdown (Acronis)</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Scope included/excluded", "stage-other", acronisScopeItems, "No scope notes.")}
@@ -548,7 +548,7 @@ function renderDashboard() {
           ${renderBoardColumn("Unpriced monthly items", "stage-remediation", acronisUnpricedItems, "No unpriced monthly items.")}
         </div>
       </details>
-      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB. Where GB values are not present in workbook data, this model uses explicit estimates of 3,000GB cloud backup and 256GB hot compute. Local backup/recovery are modelled at £0 where cloud/local prerequisites apply. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}${budget.hasCloudBackupGb ? "" : " (estimated)"}, Hot DR GB ${budget.hotDrComputeGbLabel}${budget.hasHotDrComputeGb ? "" : " (estimated)"}, Mailboxes ${budget.mailboxCountLabel}.</p>
+      <p class="muted budget-full-row budget-footer"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB. Where GB values are not present in workbook data, this model uses explicit estimates of 3,000GB cloud backup and 256GB hot compute. Local backup/recovery are modelled at £0 where cloud/local prerequisites apply. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}${budget.hasCloudBackupGb ? "" : " (estimated)"}, Hot DR GB ${budget.hotDrComputeGbLabel}${budget.hasHotDrComputeGb ? "" : " (estimated)"}, Mailboxes ${budget.mailboxCountLabel}.</p>
     `;
   }
 }
