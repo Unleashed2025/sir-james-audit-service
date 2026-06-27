@@ -439,7 +439,7 @@ function renderDashboard() {
       <p><strong>Acronis OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
       <p><strong>A5 OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
       <p><strong>Migration estimate:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
-      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month (for example RMM = £0.45 per device per month). Edge switch pricing uses range (£175–£400 each). Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Users ${budget.userCountLabel}, Mailboxes ${budget.mailboxCountLabel}, Teachers ${budget.teacherCountLabel}.</p>
+      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month (for example RMM = £0.45 per device per month). Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Users ${budget.userCountLabel}, Mailboxes ${budget.mailboxCountLabel}, Teachers ${budget.teacherCountLabel}.</p>
     `;
   }
 }
@@ -494,7 +494,7 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
 
   const edgeMin = edgeCount * 175;
   const edgeMax = edgeCount * 400;
-  const coreCapex = coreCount * 750;
+  const coreCapex = coreCount * 1600;
   const apCapex = apCount * 270;
   const networkCapexMin = edgeMin + coreCapex + apCapex;
   const networkCapexMax = edgeMax + coreCapex + apCapex;
