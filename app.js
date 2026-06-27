@@ -26,6 +26,7 @@ const els = {
   coreSummary: document.getElementById("core-summary"),
   executiveSnapshot: document.getElementById("executive-snapshot"),
   brilliantBasicsSummary: document.getElementById("brilliant-basics-summary"),
+  budgetSummary: document.getElementById("budget-summary"),
   sheetSelect: document.getElementById("sheet-select"),
   sheetInfo: document.getElementById("sheet-info"),
   sheetTable: document.getElementById("sheet-table"),
@@ -238,6 +239,14 @@ function renderDashboard() {
 
   const dashboardBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
   const executiveCyberRows = buildCyberDynamicRows(cyber, 8);
+  const budget = buildBudgetOverview({
+    infra,
+    network,
+    client,
+    migration,
+    dashboardRows,
+    overviewRows,
+  });
 
   latestReport = { dashboard, executiveMeta, infra, network, client, cyber, migration, core, software, questions };
 
@@ -420,6 +429,108 @@ function renderDashboard() {
       </div>
     `;
   }
+
+  if (els.budgetSummary) {
+    els.budgetSummary.innerHTML = `
+      <p><strong>Network refresh (capex):</strong> ${escapeHtml(formatCurrency(budget.networkCapexMin))} to ${escapeHtml(formatCurrency(budget.networkCapexMax))}</p>
+      <p><strong>Client refresh (capex):</strong> ${escapeHtml(formatCurrency(budget.clientCapex))}</p>
+      <p><strong>Server refresh (capex):</strong> ${escapeHtml(formatCurrency(budget.serverCapex))}</p>
+      <p><strong>Total capex estimate:</strong> ${escapeHtml(formatCurrency(budget.totalCapexMin))} to ${escapeHtml(formatCurrency(budget.totalCapexMax))}</p>
+      <p><strong>Acronis monthly opex (excl. optional included-in-A5 items):</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
+      <p><strong>A5 monthly estimate:</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
+      <p><strong>Migration estimate:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
+      <p class="muted"><strong>Assumptions:</strong> Edge switch pricing uses range (£175–£400 each). Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Users ${budget.userCountLabel}, Mailboxes ${budget.mailboxCountLabel}, Teachers ${budget.teacherCountLabel}.</p>
+    `;
+  }
+}
+
+function parseNumberLike(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const cleaned = raw.replace(/[^0-9.\-]/g, "");
+  if (!cleaned) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function extractCommercialCounts(rows) {
+  const out = { users: null, mailboxes: null, teachers: null };
+  const setIfEmpty = (key, n) => {
+    if (out[key] === null && Number.isFinite(n) && n >= 0) out[key] = n;
+  };
+  for (const row of rows || []) {
+    if (!Array.isArray(row)) continue;
+    for (let i = 0; i < row.length - 1; i += 1) {
+      const key = normKey(row[i]);
+      if (!key) continue;
+      const n = parseNumberLike(row[i + 1]);
+      if (n === null) continue;
+      if (key.includes("mailbox")) setIfEmpty("mailboxes", n);
+      if (key.includes("teacher") || key.includes("staff")) setIfEmpty("teachers", n);
+      if (key.includes("user") || key.includes("pupil")) setIfEmpty("users", n);
+    }
+  }
+  return out;
+}
+
+function formatCurrency(value) {
+  const n = Number(value || 0);
+  return `£${n.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
+}
+
+function buildBudgetOverview({ infra, network, client, migration, dashboardRows, overviewRows }) {
+  const counts = extractCommercialCounts([...(dashboardRows || []), ...(overviewRows || [])]);
+  const users = counts.users;
+  const mailboxes = counts.mailboxes !== null ? counts.mailboxes : users;
+  const teachers = counts.teachers !== null ? counts.teachers : users;
+
+  const edgeCount = Number(network.edge || 0);
+  const coreCount = Number(network.core || 0);
+  const apCount = Number(network.aps || 0);
+  const windowsCount = Number(client.windowsDevices || 0);
+  const chromebookCount = Number(client.chromebooks || 0);
+  const tabletCount = Number(client.tabletDevices || 0);
+  const physicalServers = Number(infra.physical || 0);
+
+  const edgeMin = edgeCount * 175;
+  const edgeMax = edgeCount * 400;
+  const coreCapex = coreCount * 750;
+  const apCapex = apCount * 270;
+  const networkCapexMin = edgeMin + coreCapex + apCapex;
+  const networkCapexMax = edgeMax + coreCapex + apCapex;
+
+  const clientCapex = (windowsCount * 600) + (chromebookCount * 300) + (tabletCount * 350);
+  const serverCapex = physicalServers * 15000;
+  const totalCapexMin = networkCapexMin + clientCapex + serverCapex;
+  const totalCapexMax = networkCapexMax + clientCapex + serverCapex;
+
+  const deviceBase = Number(client.totalQuantity || 0);
+  const acronisMonthly = (deviceBase * 0.45) + ((users || 0) * 0.75) + ((users || 0) * 1.2) + ((users || 0) * 0.5);
+  const a5Monthly = (teachers || 0) * 8;
+  const migrationByUsers = (users || 0) * 7.2;
+  const migrationCost = Math.max(7200, migrationByUsers);
+
+  return {
+    edgeCount,
+    coreCount,
+    apCount,
+    windowsCount,
+    chromebookCount,
+    tabletCount,
+    physicalServers,
+    userCountLabel: users === null ? "Not found" : String(users),
+    mailboxCountLabel: mailboxes === null ? "Not found" : String(mailboxes),
+    teacherCountLabel: teachers === null ? "Not found" : String(teachers),
+    networkCapexMin,
+    networkCapexMax,
+    clientCapex,
+    serverCapex,
+    totalCapexMin,
+    totalCapexMax,
+    acronisMonthly,
+    a5Monthly,
+    migrationCost,
+  };
 }
 
 function getRowsByNamePatterns(patterns) {
