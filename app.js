@@ -31,6 +31,7 @@ const els = {
   sheetInfo: document.getElementById("sheet-info"),
   sheetTable: document.getElementById("sheet-table"),
   exportWeb: document.getElementById("export-web"),
+  exportBudgetWeb: document.getElementById("export-budget-web"),
   exportWord: document.getElementById("export-word"),
   exportPdf: document.getElementById("export-pdf"),
 };
@@ -53,6 +54,7 @@ if (els.homeUpload) {
 }
 els.sheetSelect.addEventListener("change", renderSheetTable);
 els.exportWeb.addEventListener("click", exportWeb);
+if (els.exportBudgetWeb) els.exportBudgetWeb.addEventListener("click", exportBudgetWeb);
 els.exportWord.addEventListener("click", exportWord);
 els.exportPdf.addEventListener("click", exportPdf);
 if (els.accessSubmit) els.accessSubmit.addEventListener("click", unlockAccess);
@@ -111,6 +113,7 @@ async function onUpload(event) {
   els.workbookMeta.textContent = `${file.name} | ${sizeKb} KB | Modified: ${modifiedAt} | Loaded: ${loadedAt} | Sheets: ${workbook.SheetNames.length}`;
   if (els.reportLink) els.reportLink.textContent = "";
   els.exportWeb.disabled = false;
+  if (els.exportBudgetWeb) els.exportBudgetWeb.disabled = false;
   els.exportWord.disabled = false;
   els.exportPdf.disabled = false;
 
@@ -2493,6 +2496,37 @@ function exportWeb() {
       }, { once: true });
     }
   }
+
+  function exportBudgetWeb() {
+    if (!workbook) return;
+    const html = buildBudgetExportHtml();
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = "audit-budget-overview.html";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (els.reportLink) {
+      const safeUrl = escapeAttr(objectUrl);
+      els.reportLink.innerHTML = `
+        Budget web report link: <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open budget report</a>
+        <button id="copy-report-link" type="button">Copy link</button>
+      `;
+      const copyBtn = document.getElementById("copy-report-link");
+      if (copyBtn && navigator.clipboard) {
+        copyBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(objectUrl);
+            copyBtn.textContent = "Copied";
+          } catch (_) {
+            copyBtn.textContent = "Copy failed";
+          }
+        }, { once: true });
+      }
+    }
+  }
 }
 
 async function exportPdf() {
@@ -3060,6 +3094,80 @@ function buildExportHtml(mode = "web") {
   const data = latestReport;
   if (!data) {
     return `<!doctype html><html><head><meta charset="utf-8"><title>Audit Export</title></head><body><p>No workbook loaded.</p></body></html>`;
+  }
+
+  function buildBudgetExportHtml() {
+    if (!latestReport) {
+      return "<!doctype html><html><head><meta charset=\"utf-8\"><title>Budget Export</title></head><body><p>No workbook loaded.</p></body></html>";
+    }
+    const { dashboard, executiveMeta, infra, network, client, cyber, migration } = latestReport;
+    const budget = buildBudgetOverview({
+      infra,
+      network,
+      client,
+      cyber,
+      migration,
+      dashboardRows: getRows("Dashboard"),
+      overviewRows: getRowsByNamePatterns(["high level", "overview", "summary"]),
+    });
+    const school = executiveMeta?.school && executiveMeta.school !== "-"
+      ? executiveMeta.school
+      : (inferClientNameFromWorkbook(currentWorkbookName) || "Client Site");
+    const reportDate = executiveMeta?.reportDate && executiveMeta.reportDate !== "-"
+      ? executiveMeta.reportDate
+      : new Date().toLocaleDateString("en-GB");
+    const budgetSummaryHtml = els.budgetSummary ? els.budgetSummary.innerHTML : "<p>No budget summary available.</p>";
+
+    return `<!doctype html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Budget Overview - ${escapeHtml(school)}</title>
+    <style>
+      body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: #f3f6fb; color: #10233f; }
+      .page { max-width: 1280px; margin: 0 auto; padding: 20px; }
+      .card { background: #fff; border: 1px solid #d9e1ec; border-radius: 14px; box-shadow: 0 8px 20px rgba(16,35,63,.08); padding: 14px 16px; margin-top: 14px; }
+      .card:first-child { margin-top: 0; }
+      h1 { margin: 0 0 6px; font-size: 26px; color: #08233f; }
+      h2 { margin: 0 0 10px; font-size: 18px; color: #0f2748; border-bottom: 1px solid #dce6f5; padding-bottom: 8px; }
+      .meta { color: #5d6b82; font-size: 13px; }
+      .meta strong { color: #10233f; }
+      #budget-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 9px; }
+      #budget-summary p { margin: 0; border: 1px solid #d9e1ec; border-radius: 12px; padding: 10px 12px; background: linear-gradient(180deg, #ffffff, #f8fbff); position: relative; overflow: hidden; }
+      #budget-summary p::before { content: ""; position: absolute; left: 0; top: 0; width: 4px; height: 100%; background: linear-gradient(180deg, #1d4ed8, #60a5fa); opacity: 0.7; }
+      #budget-summary p.muted { background: linear-gradient(180deg, #f7faff, #f1f6ff); border-style: dashed; color: #5d6b82; }
+      #budget-summary .budget-full-row { grid-column: 1 / -1; }
+      .details-list { margin-top: 10px; border: 1px solid #d9e1ec; border-radius: 12px; padding: 8px 10px; background: linear-gradient(180deg, #f9fbff, #f4f8ff); }
+      .details-list summary { cursor: default; color: #0f2748; font-weight: 700; }
+      .migration-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; margin-top: 8px; }
+      .lifecycle-status-board { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+      .migration-stage-card { border: 1px solid #d9e1ec; border-radius: 12px; background: linear-gradient(180deg, #fff, #f8fbff); padding: 10px; }
+      .migration-stage-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+      .migration-stage-head span { min-width: 28px; text-align: center; border-radius: 999px; padding: 2px 8px; background: #e6eefb; color: #133565; font-weight: 700; }
+      .migration-stage-list { margin: 0; padding-left: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+      .migration-stage-list li { border: 1px solid #d7e2f1; border-radius: 10px; background: linear-gradient(180deg, #fff, #f5f9ff); padding: 8px 10px; font-size: 13px; }
+      .stage-ready { border-color: #bfe8cf; background: #f4fcf8; } .stage-ready .migration-stage-head span { background: #dcfce7; color: #166534; }
+      .stage-progress { border-color: #f3d9a3; background: #fffaf0; } .stage-progress .migration-stage-head span { background: #fef3c7; color: #92400e; }
+      .stage-remediation { border-color: #efc3c3; background: #fff6f6; } .stage-remediation .migration-stage-head span { background: #fee2e2; color: #991b1b; }
+      .stage-other { border-color: #ced7e6; background: #f8fbff; }
+      @media print { body { background: #fff; } .page { max-width: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="card">
+        <h1>Budget Overview Report</h1>
+        <p class="meta"><strong>Client:</strong> ${escapeHtml(school)} | <strong>Report date:</strong> ${escapeHtml(reportDate)} | <strong>Generated:</strong> ${escapeHtml(new Date().toLocaleString())}</p>
+        <p class="meta"><strong>Workbook:</strong> ${escapeHtml(currentWorkbookName || "Uploaded workbook")} | <strong>Total users:</strong> ${escapeHtml(budget.userCountLabel)} | <strong>Teachers:</strong> ${escapeHtml(budget.teacherCountLabel)}</p>
+      </section>
+      <section class="card">
+        <h2>Budget Overview (Budgetary Only)</h2>
+        <div id="budget-summary">${budgetSummaryHtml}</div>
+      </section>
+    </div>
+  </body>
+  </html>`;
   }
   const isWord = mode === "word";
   const isPdf = mode === "pdf";
