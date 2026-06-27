@@ -432,14 +432,14 @@ function renderDashboard() {
 
   if (els.budgetSummary) {
     els.budgetSummary.innerHTML = `
-      <p><strong>Network refresh (capex):</strong> ${escapeHtml(formatCurrency(budget.networkCapexMin))} to ${escapeHtml(formatCurrency(budget.networkCapexMax))}</p>
-      <p><strong>Client refresh (capex):</strong> ${escapeHtml(formatCurrency(budget.clientCapex))}</p>
-      <p><strong>Server refresh (capex):</strong> ${escapeHtml(formatCurrency(budget.serverCapex))}</p>
-      <p><strong>Total capex estimate:</strong> ${escapeHtml(formatCurrency(budget.totalCapexMin))} to ${escapeHtml(formatCurrency(budget.totalCapexMax))}</p>
-      <p><strong>Acronis monthly opex (excl. optional included-in-A5 items):</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
-      <p><strong>A5 monthly estimate:</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
+      <p><strong>Network refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.networkCapexMin))} to ${escapeHtml(formatCurrency(budget.networkCapexMax))}</p>
+      <p><strong>Client refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.clientCapex))}</p>
+      <p><strong>Server refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.serverCapex))}</p>
+      <p><strong>Total CAPEX estimate (one-off):</strong> ${escapeHtml(formatCurrency(budget.totalCapexMin))} to ${escapeHtml(formatCurrency(budget.totalCapexMax))}</p>
+      <p><strong>Acronis OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
+      <p><strong>A5 OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
       <p><strong>Migration estimate:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
-      <p class="muted"><strong>Assumptions:</strong> Edge switch pricing uses range (£175–£400 each). Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Users ${budget.userCountLabel}, Mailboxes ${budget.mailboxCountLabel}, Teachers ${budget.teacherCountLabel}.</p>
+      <p class="muted"><strong>Assumptions:</strong> Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month (for example RMM = £0.45 per device per month). Edge switch pricing uses range (£175–£400 each). Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Users ${budget.userCountLabel}, Mailboxes ${budget.mailboxCountLabel}, Teachers ${budget.teacherCountLabel}.</p>
     `;
   }
 }
