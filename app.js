@@ -523,9 +523,7 @@ function computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migrati
   };
 }
 
-function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration, basicsRows = [], cyberRows = []) {
-  if (!els.executiveSnapshot) return;
-  const snapshot = computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration);
+function buildExecutiveCriticalSummaries(basicsRows = [], cyberRows = []) {
   const basicsGaps = (basicsRows || []).filter((row) => row.status !== "In Place");
   const basicsGapText = basicsGaps.length
     ? basicsGaps.slice(0, 3).map((row) => `${row.capability}: ${row.status}`).join(" | ")
@@ -537,6 +535,13 @@ function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migratio
   const cyberGapText = cyberGapRows.length
     ? cyberGapRows.slice(0, 4).map((row) => `${row.area}: ${row.status}`).join(" | ")
     : "No high-priority cyber control gaps currently flagged.";
+  return { basicsGapText, cyberGapText };
+}
+
+function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration, basicsRows = [], cyberRows = []) {
+  if (!els.executiveSnapshot) return;
+  const snapshot = computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration);
+  const { basicsGapText, cyberGapText } = buildExecutiveCriticalSummaries(basicsRows, cyberRows);
   els.executiveSnapshot.innerHTML = `
     <p><strong>Client:</strong> ${escapeHtml(snapshot.school)}</p>
     <p><strong>Report date:</strong> ${escapeHtml(snapshot.reportDate)}</p>
@@ -2131,6 +2136,7 @@ async function exportPdf() {
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
   const costOptimisationRows = buildCostOptimisationRows(cyber);
   const dynamicCyberRows = buildCyberDynamicRows(cyber, 40);
+  const executiveCritical = buildExecutiveCriticalSummaries(brilliantBasicsRows, dynamicCyberRows);
   const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
   const mfaBasic = getBasicRow("MFA / Conditional Access");
   const rmmBasic = getBasicRow("RMM");
@@ -2191,6 +2197,8 @@ async function exportPdf() {
         ["Executive snapshot", "Info", `School: ${executiveSnapshot.school}; Report date: ${executiveSnapshot.reportDate}; Migration target: ${executiveSnapshot.migrationTarget}.`],
         ["Critical risk flags", executiveSnapshot.criticalRiskCount > 0 ? "Attention" : "Stable", `${executiveSnapshot.criticalRiskCount} board-level risk flags identified from current workbook values.`],
         ["Immediate replacement candidates", executiveSnapshot.immediateReplacementCandidates > 0 ? "Action required" : "Stable", `${executiveSnapshot.immediateReplacementCandidates} immediate replacement candidates detected.`],
+        ["Brilliant Basics priorities", "Critical controls", executiveCritical.basicsGapText],
+        ["Cyber controls needing action", "Critical controls", executiveCritical.cyberGapText],
         ["Top priorities", "Action plan", executiveSnapshot.prioritiesText],
       ],
     },
@@ -2699,6 +2707,7 @@ function buildExportHtml(mode = "web") {
   const brilliantBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
   const costOptimisationRows = buildCostOptimisationRows(cyber);
   const dynamicCyberRows = buildCyberDynamicRows(cyber, 40);
+  const executiveCritical = buildExecutiveCriticalSummaries(brilliantBasicsRows, dynamicCyberRows);
   const getBasicRow = (capability) => brilliantBasicsRows.find((row) => row.capability === capability) || { status: "Unknown", evidence: "No explicit evidence found — validate in workbook." };
   const mfaBasic = getBasicRow("MFA / Conditional Access");
   const rmmBasic = getBasicRow("RMM");
@@ -3153,6 +3162,8 @@ function buildExportHtml(mode = "web") {
           <tr><td>Microsoft readiness</td><td>${escapeHtml(executiveSnapshot.msReadyValue)}</td><td>Readiness score from migration workbook rows.</td></tr>
           <tr><td>Critical risk flags</td><td>${executiveSnapshot.criticalRiskCount > 0 ? "Attention" : "Stable"}</td><td>${executiveSnapshot.criticalRiskCount} board-level risk flags currently active.</td></tr>
           <tr><td>Immediate replacement candidates</td><td>${executiveSnapshot.immediateReplacementCandidates > 0 ? "Action required" : "Stable"}</td><td>${executiveSnapshot.immediateReplacementCandidates} immediate replacement candidates detected.</td></tr>
+          <tr><td>Brilliant Basics priorities</td><td>Critical controls</td><td>${escapeHtml(executiveCritical.basicsGapText)}</td></tr>
+          <tr><td>Cyber controls needing action</td><td>Critical controls</td><td>${escapeHtml(executiveCritical.cyberGapText)}</td></tr>
           <tr><td>Migration target</td><td>${escapeHtml(executiveSnapshot.migrationTarget)}</td><td>Cutover target from overview/dashboard sheets (with fallback).</td></tr>
           <tr><td>Top priorities</td><td>Action plan</td><td>${escapeHtml(executiveSnapshot.prioritiesText)}</td></tr>
         </tbody>
