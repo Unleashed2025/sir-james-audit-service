@@ -431,6 +431,41 @@ function renderDashboard() {
   }
 
   if (els.budgetSummary) {
+    const capexNetworkItems = [
+      `Edge switches (${budget.edgeCount}) x £175 to £400 = ${formatCurrency(budget.edgeCount * 175)} to ${formatCurrency(budget.edgeCount * 400)}`,
+      `Core switches (${budget.coreCount}) x £1,600 = ${formatCurrency(budget.coreCount * 1600)}`,
+      `Wi-Fi 7 APs (${budget.apCount}) x £270 = ${formatCurrency(budget.apCount * 270)}`,
+    ];
+    const capexClientServerItems = [
+      `Windows devices (${budget.windowsCount}) x £600 = ${formatCurrency(budget.windowsCount * 600)}`,
+      `Chromebooks (${budget.chromebookCount}) x £300 = ${formatCurrency(budget.chromebookCount * 300)}`,
+      `iPad/Tablet (${budget.tabletCount}) x £350 = ${formatCurrency(budget.tabletCount * 350)}`,
+      `Physical servers (${budget.physicalServers}) x £15,000 = ${formatCurrency(budget.physicalServers * 15000)}`,
+    ];
+    const capexRules = [
+      "Hardware and network are one-off CAPEX.",
+      "Edge switch estimate shown as planning range.",
+      "Core switch baseline uses Ubiquiti 48-port at £1,600 each.",
+    ];
+
+    const acronisScopeItems = [
+      `Device base used for AV/EDR/RMM: ${budget.deviceCountLabel} client devices (Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Mac ${budget.macCount}, Other ${budget.otherClientCount}).`,
+      `Excluded from AV/EDR base: Core switches ${budget.coreCount}, Edge switches ${budget.edgeCount}, Wi-Fi APs ${budget.apCount}, Firewalls ${budget.firewallCount}.`,
+      `User base used for user-priced services: ${budget.userCountLabel} (Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}).`,
+    ];
+    const acronisPricedItems = [
+      `RMM (${budget.deviceCountLabel} devices) x £0.45 = ${formatCurrencyMonthly(budget.acronisRmmMonthly)}`,
+      `EDR / anti-virus (${budget.deviceCountLabel} devices) x £0.50 = ${formatCurrencyMonthly(budget.acronisEdrMonthly)}`,
+      `Email security (${budget.userCountLabel} users) x £0.80 = ${formatCurrencyMonthly(budget.acronisEmailSecurityMonthly)}`,
+      `Microsoft 365 backup (${budget.userCountLabel} users) x £0.75 = ${formatCurrencyMonthly(budget.acronisM365BackupMonthly)}`,
+      `Security awareness training (${budget.userCountLabel} users) x £1.20 = ${formatCurrencyMonthly(budget.acronisSatMonthly)}`,
+      `ISPM (${budget.userCountLabel} users) x £0.50 = ${formatCurrencyMonthly(budget.acronisIspmMonthly)}`,
+    ];
+    const acronisUnpricedItems = [
+      `DLP (${budget.userCountLabel} users): rate not provided (currently £0.00 in model).`,
+      `Cloud apps (${budget.userCountLabel} users): rate not provided (currently £0.00 in model).`,
+    ];
+
     els.budgetSummary.innerHTML = `
       <p><strong>Network refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.networkCapexMin))} to ${escapeHtml(formatCurrency(budget.networkCapexMax))}</p>
       <p><strong>Client refresh CAPEX (one-off):</strong> ${escapeHtml(formatCurrency(budget.clientCapex))}</p>
@@ -441,30 +476,19 @@ function renderDashboard() {
       <p><strong>Migration estimate:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
       <details class="details-list lifecycle-dropdown" open>
         <summary><strong>CAPEX item breakdown</strong></summary>
-        <ul class="list">
-          <li>Edge switches (${budget.edgeCount}) x £175 to £400 = ${escapeHtml(formatCurrency(budget.edgeCount * 175))} to ${escapeHtml(formatCurrency(budget.edgeCount * 400))}</li>
-          <li>Core switches (${budget.coreCount}) x £1,600 = ${escapeHtml(formatCurrency(budget.coreCount * 1600))}</li>
-          <li>Wi-Fi 7 APs (${budget.apCount}) x £270 = ${escapeHtml(formatCurrency(budget.apCount * 270))}</li>
-          <li>Windows devices (${budget.windowsCount}) x £600 = ${escapeHtml(formatCurrency(budget.windowsCount * 600))}</li>
-          <li>Chromebooks (${budget.chromebookCount}) x £300 = ${escapeHtml(formatCurrency(budget.chromebookCount * 300))}</li>
-          <li>iPad/Tablet (${budget.tabletCount}) x £350 = ${escapeHtml(formatCurrency(budget.tabletCount * 350))}</li>
-          <li>Physical servers (${budget.physicalServers}) x £15,000 = ${escapeHtml(formatCurrency(budget.physicalServers * 15000))}</li>
-        </ul>
+        <div class="migration-board lifecycle-status-board">
+          ${renderBoardColumn("Network CAPEX items", "stage-progress", capexNetworkItems, "No network CAPEX items.")}
+          ${renderBoardColumn("Client/server CAPEX items", "stage-remediation", capexClientServerItems, "No client/server CAPEX items.")}
+          ${renderBoardColumn("CAPEX assumptions", "stage-other", capexRules, "No CAPEX assumptions listed.")}
+        </div>
       </details>
       <details class="details-list lifecycle-dropdown" open>
         <summary><strong>Acronis monthly breakdown (real unit model)</strong></summary>
-        <ul class="list">
-          <li><strong>Device base used for AV/EDR/RMM:</strong> ${budget.deviceCountLabel} client devices (Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Mac ${budget.macCount}, Other ${budget.otherClientCount}).</li>
-          <li><strong>Explicitly excluded from AV/EDR base:</strong> Core switches ${budget.coreCount}, Edge switches ${budget.edgeCount}, Wi-Fi APs ${budget.apCount}, Firewalls ${budget.firewallCount}.</li>
-          <li>RMM (${budget.deviceCountLabel} devices) x £0.45 = ${escapeHtml(formatCurrencyMonthly(budget.acronisRmmMonthly))}</li>
-          <li>EDR / anti-virus (${budget.deviceCountLabel} devices) x £0.50 = ${escapeHtml(formatCurrencyMonthly(budget.acronisEdrMonthly))}</li>
-          <li>Email security (${budget.userCountLabel} users) x £0.80 = ${escapeHtml(formatCurrencyMonthly(budget.acronisEmailSecurityMonthly))}</li>
-          <li>Microsoft 365 backup (${budget.userCountLabel} users) x £0.75 = ${escapeHtml(formatCurrencyMonthly(budget.acronisM365BackupMonthly))}</li>
-          <li>Security awareness training (${budget.userCountLabel} users) x £1.20 = ${escapeHtml(formatCurrencyMonthly(budget.acronisSatMonthly))}</li>
-          <li>ISPM (${budget.userCountLabel} users) x £0.50 = ${escapeHtml(formatCurrencyMonthly(budget.acronisIspmMonthly))}</li>
-          <li>DLP (${budget.userCountLabel} users): rate not provided (currently £0.00 in model)</li>
-          <li>Cloud apps (${budget.userCountLabel} users): rate not provided (currently £0.00 in model)</li>
-        </ul>
+        <div class="migration-board lifecycle-status-board">
+          ${renderBoardColumn("Scope included/excluded", "stage-other", acronisScopeItems, "No scope notes.")}
+          ${renderBoardColumn("Priced monthly items", "stage-progress", acronisPricedItems, "No priced monthly items.")}
+          ${renderBoardColumn("Unpriced monthly items", "stage-remediation", acronisUnpricedItems, "No unpriced monthly items.")}
+        </div>
       </details>
       <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Mailboxes ${budget.mailboxCountLabel}.</p>
     `;
