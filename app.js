@@ -236,9 +236,12 @@ function renderDashboard() {
     : "-";
   const cyberPctValue = dashboard.cyberPct !== "-" ? dashboard.cyberPct : cyberPctFallback;
 
+  const dashboardBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
+  const executiveCyberRows = buildCyberDynamicRows(cyber, 8);
+
   latestReport = { dashboard, executiveMeta, infra, network, client, cyber, migration, core, software, questions };
 
-  renderExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
+  renderExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration, dashboardBasicsRows, executiveCyberRows);
   renderKpis(dashboard, infra, network, client, cyber, migration, questions);
   renderRisks(infra, cyber, migration, client, core);
   renderMigrationActions(migration);
@@ -378,7 +381,6 @@ function renderDashboard() {
     </div>
   `;
 
-  const dashboardBasicsRows = buildBrilliantBasicsRows(cyber, core, software);
   const dashboardCostRows = buildCostOptimisationRows(cyber);
   const dashboardBasicsRowsHtml = dashboardBasicsRows
     .map((row) => `
@@ -521,9 +523,20 @@ function computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migrati
   };
 }
 
-function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration) {
+function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration, basicsRows = [], cyberRows = []) {
   if (!els.executiveSnapshot) return;
   const snapshot = computeExecutiveSnapshot(meta, dashboard, infra, client, cyber, migration);
+  const basicsGaps = (basicsRows || []).filter((row) => row.status !== "In Place");
+  const basicsGapText = basicsGaps.length
+    ? basicsGaps.slice(0, 3).map((row) => `${row.capability}: ${row.status}`).join(" | ")
+    : "All Brilliant Basics controls currently in place.";
+  const cyberGapRows = (cyberRows || []).filter((row) => {
+    const key = normKey(row.status);
+    return !(key === "yes" || key.includes("complete"));
+  });
+  const cyberGapText = cyberGapRows.length
+    ? cyberGapRows.slice(0, 4).map((row) => `${row.area}: ${row.status}`).join(" | ")
+    : "No high-priority cyber control gaps currently flagged.";
   els.executiveSnapshot.innerHTML = `
     <p><strong>Client:</strong> ${escapeHtml(snapshot.school)}</p>
     <p><strong>Report date:</strong> ${escapeHtml(snapshot.reportDate)}</p>
@@ -531,6 +544,8 @@ function renderExecutiveSnapshot(meta, dashboard, infra, client, cyber, migratio
     <p><strong>Critical risk flags:</strong> <span class="${snapshot.criticalRiskCount > 0 ? "danger" : "ok"}">${snapshot.criticalRiskCount}</span></p>
     <p><strong>Immediate replacement candidates:</strong> <span class="${snapshot.immediateReplacementCandidates > 0 ? "danger" : "ok"}">${snapshot.immediateReplacementCandidates}</span></p>
     <p><strong>Migration target:</strong> ${escapeHtml(snapshot.migrationTarget)}</p>
+    <p><strong>Brilliant Basics priorities:</strong> ${escapeHtml(basicsGapText)}</p>
+    <p><strong>Cyber controls needing action:</strong> ${escapeHtml(cyberGapText)}</p>
     <p><strong>Top priorities:</strong> ${escapeHtml(snapshot.prioritiesText)}</p>
   `;
 }
