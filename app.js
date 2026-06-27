@@ -2504,35 +2504,35 @@ function exportWeb() {
       }, { once: true });
     }
   }
+}
 
-  function exportBudgetWeb() {
-    if (!workbook) return;
-    const html = buildBudgetExportHtml();
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = "audit-budget-overview.html";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    if (els.reportLink) {
-      const safeUrl = escapeAttr(objectUrl);
-      els.reportLink.innerHTML = `
-        Budget web report link: <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open budget report</a>
-        <button id="copy-report-link" type="button">Copy link</button>
-      `;
-      const copyBtn = document.getElementById("copy-report-link");
-      if (copyBtn && navigator.clipboard) {
-        copyBtn.addEventListener("click", async () => {
-          try {
-            await navigator.clipboard.writeText(objectUrl);
-            copyBtn.textContent = "Copied";
-          } catch (_) {
-            copyBtn.textContent = "Copy failed";
-          }
-        }, { once: true });
-      }
+function exportBudgetWeb() {
+  if (!workbook) return;
+  const html = buildBudgetExportHtml();
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = "audit-budget-overview.html";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if (els.reportLink) {
+    const safeUrl = escapeAttr(objectUrl);
+    els.reportLink.innerHTML = `
+      Budget web report link: <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open budget report</a>
+      <button id="copy-report-link" type="button">Copy link</button>
+    `;
+    const copyBtn = document.getElementById("copy-report-link");
+    if (copyBtn && navigator.clipboard) {
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(objectUrl);
+          copyBtn.textContent = "Copied";
+        } catch (_) {
+          copyBtn.textContent = "Copy failed";
+        }
+      }, { once: true });
     }
   }
 }
