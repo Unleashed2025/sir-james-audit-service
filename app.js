@@ -1592,15 +1592,23 @@ function buildCyberDynamicRows(cyber, maxRows = 40) {
     const status = String(control.status || "Unknown").trim() || "Unknown";
     const supplier = String(control.supplier || "Unknown").trim() || "Unknown";
     const stage = String(control.stage || "").toLowerCase();
+    const statusKey = normKey(status);
     let recommendation = "Validate status and assign an owner with evidence and review cadence.";
     if (stage === "complete") recommendation = "Maintain control coverage and evidence of effectiveness.";
     else if (stage === "na") recommendation = "Treat as not implemented and prioritise remediation/alignment.";
     else if (status.toLowerCase().includes("partial") || stage === "incomplete") recommendation = "Complete implementation and evidence as a priority remediation item.";
+    const concern = stage === "complete" || statusKey === "yes"
+      ? "N/A - implemented."
+      : stage === "na" || statusKey === "no" || statusKey === "n/a" || statusKey === "na"
+        ? "Control is not implemented; this is a remediation priority."
+        : statusKey.includes("partial")
+          ? "Control is partially implemented; complete rollout and evidence are required."
+          : `Implementation status is ${status}; confirm ownership, evidence, and remediation timeline.`;
     out.push({
       area,
       status,
       supplier,
-      concern: `Supplier signal: ${supplier}`,
+      concern,
       recommendation,
     });
     if (out.length >= maxRows) break;
