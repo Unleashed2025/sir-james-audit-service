@@ -2583,6 +2583,65 @@ async function exportPdf() {
   const rmmBasic = getBasicRow("RMM");
   const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
   const executiveSnapshot = computeExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
+  const budget = buildBudgetOverview({
+    infra,
+    network,
+    client,
+    cyber,
+    migration,
+    dashboardRows: getRows("Dashboard"),
+    overviewRows: getRowsByNamePatterns(["high level", "overview", "summary"]),
+  });
+  const fmtCurrency = (value) => `£${Number(value || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
+  const reportDateCandidate = executiveMeta.reportDate && executiveMeta.reportDate !== "-"
+    ? new Date(executiveMeta.reportDate)
+    : new Date();
+  const reportDateBase = Number.isNaN(reportDateCandidate.getTime()) ? new Date() : reportDateCandidate;
+  const dueMonth = (monthOffset) => {
+    const d = new Date(reportDateBase.getFullYear(), reportDateBase.getMonth() + monthOffset, 1);
+    return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  };
+  const estimatedInputs = [
+    budget.hasCloudBackupGb ? null : "Cloud backup GB",
+    budget.hasHotDrComputeGb ? null : "Hot DR compute GB",
+  ].filter(Boolean);
+  const missingCoreInputs = [
+    budget.userCountLabel === "Not found" ? "Total users" : null,
+    budget.teacherCountLabel === "Not found" ? "Teachers" : null,
+    budget.deviceCountLabel === "0" ? "Client devices" : null,
+  ].filter(Boolean);
+  const topActionRows = [
+    [
+      `Close ${migration.remediation} migration remediation items`,
+      "School IT + Trust PMO",
+      dueMonth(1),
+      "Migration cutover readiness is blocked until remediation closes.",
+    ],
+    [
+      `Remediate ${cyber.incompleteCount} incomplete cyber controls`,
+      "School IT Security Lead",
+      dueMonth(2),
+      "Assurance and tenancy readiness rely on complete control evidence.",
+    ],
+    [
+      `Replace/upgrade ${infra.ws2012} Windows Server 2012 workloads`,
+      "Infrastructure Lead",
+      dueMonth(2),
+      "Unsupported server OS remains a critical lifecycle trigger.",
+    ],
+    [
+      `Plan replacement for ${client.oldOsTotal} unsupported client OS devices`,
+      "Endpoint Lead",
+      dueMonth(3),
+      "Unsupported endpoints increase operational and security risk.",
+    ],
+    [
+      `Address network lifecycle hotspots (AP ${network.apsOutOfWarranty}, switch ${network.switchesOutOfWarranty}, firewall ${network.firewallsOutOfWarranty})`,
+      "Network Lead",
+      dueMonth(3),
+      "Wi-Fi 7 readiness depends on coordinated network refresh.",
+    ],
+  ];
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -2738,10 +2797,36 @@ async function exportPdf() {
       body: costOptimisationRows.map((row) => [row.service, row.status, row.supplier, row.recommendation]),
     },
     {
-      title: "Cost Optimisation and Consolidation Plan",
-      intro: "This chapter aligns current control/supplier signals to the planned A5 uplift and Acronis consolidation path. Rows marked No / N/A / Partial / Multiple or non-target suppliers are treated as consolidation candidates.",
-      head: ["Service area", "Current status", "Supplier signal", "Consolidation recommendation"],
-      body: costOptimisationRows.map((row) => [row.service, row.status, row.supplier, row.recommendation]),
+      title: "Data Quality and Assumptions",
+      intro: "This chapter highlights where the report uses workbook values versus explicit assumptions, so governance can quickly understand which inputs would most improve budget accuracy.",
+      head: ["Input area", "Value used", "Source", "Impact if updated"],
+      body: [
+        ["Total users", budget.userCountLabel, budget.userCountLabel === "Not found" ? "Assumed/Not found" : "Workbook", "Affects user-based OPEX lines."],
+        ["Teachers", budget.teacherCountLabel, budget.teacherCountLabel === "Not found" ? "Assumed/Not found" : "Workbook", "Directly drives A5 OPEX."],
+        ["Client devices", budget.deviceCountLabel, budget.deviceCountLabel === "0" ? "Assumed/Not found" : "Workbook", "Drives per-device AV/EDR/RMM and rollout costs."],
+        ["Cloud backup GB", budget.cloudBackupGbLabel, budget.hasCloudBackupGb ? "Workbook" : "Estimated fallback (3,000GB)", "Drives cloud backup OPEX at £0.10/GB."],
+        ["Hot DR compute GB", budget.hotDrComputeGbLabel, budget.hasHotDrComputeGb ? "Workbook" : "Estimated fallback (256GB)", "Drives hot DR OPEX at £0.11/GB."],
+        ["Estimated fields in use", String(estimatedInputs.length), estimatedInputs.length ? estimatedInputs.join(", ") : "None", "Replace estimates with workbook values for higher accuracy."],
+        ["Missing critical fields", String(missingCoreInputs.length), missingCoreInputs.length ? missingCoreInputs.join(", ") : "None", "Missing fields reduce confidence and can under/overstate totals."],
+      ],
+    },
+    {
+      title: "Top 5 Actions, Owners and Due Months",
+      intro: "This chapter provides a concise executive action register with clear ownership and due-month targeting to support governance tracking without duplicating detailed chapters.",
+      head: ["Priority action", "Owner", "Due month", "Reason"],
+      body: topActionRows,
+    },
+    {
+      title: "Budget Confidence and Delivery Scope",
+      intro: "This chapter separates financial confidence from delivery scope, clarifying where estimates are measured, assumed, or dependent on further scoped work.",
+      head: ["Budget line", "Current estimate", "Confidence", "Scope note"],
+      body: [
+        ["Total CAPEX", `${fmtCurrency(budget.totalCapexMin)} to ${fmtCurrency(budget.totalCapexMax)}`, "Medium", "Hardware pricing modelled; final supplier quotes still required."],
+        ["Acronis OPEX (monthly)", fmtCurrency(budget.acronisMonthly), estimatedInputs.length ? "Medium (includes estimates)" : "High", estimatedInputs.length ? `Uses estimated inputs: ${estimatedInputs.join(", ")}.` : "All key GB inputs sourced from workbook."],
+        ["A5 OPEX (monthly)", fmtCurrency(budget.a5Monthly), budget.teacherCountLabel === "Not found" ? "Medium" : "High", "Teachers-only licensing model; students excluded."],
+        ["Migration assessment", fmtCurrency(budget.migrationCost), "High", "Formula fixed: higher of £2,400 or £7.20 per user."],
+        ["Implementation services", fmtCurrency(budget.implementationTotal), "Medium", "Includes server/switch/AP/cyber/client rollout services; excludes cabling and deeper onboarding scope."],
+      ],
     },
   ];
 
