@@ -500,7 +500,21 @@ function extractCommercialCounts(rows) {
       if (key.includes("mailbox")) setIfEmpty("mailboxes", n);
       if (key.includes("teacher") || key.includes("staff")) setIfEmpty("teachers", n);
       if (key.includes("student") || key.includes("pupil")) setIfEmpty("students", n);
-      if (key.includes("device") || key.includes("endpoint")) setIfEmpty("devices", n);
+      const isClientDeviceKey =
+        key.includes("client device") ||
+        key.includes("endpoint") ||
+        key.includes("end user device") ||
+        key.includes("user device") ||
+        key === "devices";
+      const isNetworkDeviceKey =
+        key.includes("wifi") ||
+        key.includes("wi fi") ||
+        key.includes("access point") ||
+        key.includes("ap ") ||
+        key.includes("switch") ||
+        key.includes("firewall") ||
+        key.includes("network");
+      if (isClientDeviceKey && !isNetworkDeviceKey) setIfEmpty("devices", n);
       if (key.includes("user") && !key.includes("device")) setIfEmpty("users", n);
     }
   }
@@ -549,7 +563,7 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
   const totalCapexMin = networkCapexMin + clientCapex + serverCapex;
   const totalCapexMax = networkCapexMax + clientCapex + serverCapex;
 
-  const deviceBase = Number(counts.devices !== null ? counts.devices : (client.totalQuantity || 0));
+  const deviceBase = Number((client.totalQuantity || 0) > 0 ? client.totalQuantity : (counts.devices || 0));
   const acronisRmmMonthly = deviceBase * 0.45;
   const acronisEdrMonthly = deviceBase * 0.5;
   const acronisEmailSecurityMonthly = (users || 0) * 0.8;
@@ -582,7 +596,7 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     studentCountLabel: students === null ? "Not found" : String(students),
     mailboxCountLabel: mailboxes === null ? "Not found" : String(mailboxes),
     teacherCountLabel: teachers === null ? "Not found" : String(teachers),
-    deviceCountLabel: counts.devices === null ? String(deviceBase) : String(counts.devices),
+    deviceCountLabel: String(deviceBase),
     networkCapexMin,
     networkCapexMax,
     clientCapex,
