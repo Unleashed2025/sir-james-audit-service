@@ -2634,8 +2634,8 @@ function buildExportHtml(mode = "web") {
   const logoWhiteUrl = new URL("assets/unleashed-logo-white.png", window.location.href).href;
   const logoBlueUrl = new URL("assets/unleashed-logo-blue.png", window.location.href).href;
   const coverLogoUrl = isWord ? logoBlueUrl : logoWhiteUrl;
-  const coverLogoWidth = isWord ? 646 : 460;
-  const coverLogoHeight = isWord ? 142 : 101;
+  const coverLogoWidth = isWord ? 600 : 460;
+  const coverLogoHeight = isWord ? 132 : 101;
   const coverLogoInlineStyle = `width:${coverLogoWidth}px;height:${coverLogoHeight}px;`;
   const executiveSnapshot = computeExecutiveSnapshot(executiveMeta, dashboard, infra, client, cyber, migration);
 
@@ -2985,15 +2985,19 @@ function buildExportHtml(mode = "web") {
     }
     .cover-logo {
       display: block;
-      width: ${isWord ? "646px" : "460px"};
+      width: ${isWord ? "600px" : "460px"};
       height: auto;
       max-width: 100%;
     }
     .word-export .cover-brand {
+      display: flex;
+      justify-content: flex-start;
+      width: 100%;
       background: transparent;
       border-radius: 0;
       padding: 0;
     }
+    .word-export .cover-logo { margin-right: auto; }
     .brand { font-size: 42px; font-weight: 700; letter-spacing: 1px; margin: 0; }
     .brand-sub { margin-top: 4px; color: #dbeafe; font-size: 15px; }
     .cover-title { margin-top: 54px; font-size: ${isWord ? "34px" : "44px"}; line-height: 1.08; font-weight: 700; overflow-wrap: anywhere; color: ${isWord ? "#0b3159" : "#ffffff"}; }
