@@ -243,6 +243,7 @@ function renderDashboard() {
     infra,
     network,
     client,
+    cyber,
     migration,
     dashboardRows,
     overviewRows,
@@ -507,6 +508,21 @@ function renderDashboard() {
     const acronisUnpricedItems = [
       "MFA / Conditional Access is covered under existing Microsoft licensing (A3/A5) and is not an extra Acronis cost.",
     ];
+    const implementationInfraItems = [
+      `Server engineering (${budget.physicalServers} physical servers) x £2,500 = ${formatCurrency(budget.serverEngineeringCost)}`,
+      `Switch engineering (${budget.edgeCount} edge switches) x £300 = ${formatCurrency(budget.switchEngineeringCost)}`,
+      `Core switch setup (${budget.coreCount} switches) x 1 day x £800/day = ${formatCurrency(budget.coreSwitchSetupCost)}`,
+      `Wi-Fi AP setup (${budget.apCount} APs) estimated ${budget.wifiSetupDays} days x £800/day = ${formatCurrency(budget.wifiSetupCost)}`,
+      "Cabling costs are excluded (to be scoped).",
+    ];
+    const implementationCyberItems = [
+      `Cyber controls implementation (${budget.cyberControlCount} controls) x £3,200 each = ${formatCurrency(budget.cyberImplementationCost)}`,
+      "Assumption: 4 implementation days per control (included in £3,200 each).",
+    ];
+    const implementationClientItems = [
+      `Autopilot + Intune enrollment (${budget.deviceCountLabel} client devices) x £30 = ${formatCurrency(budget.clientRolloutCost)}`,
+      "Factory enrollment and rollout services only.",
+    ];
 
     els.budgetSummary.innerHTML = `
       <p class="budget-kpi"><strong>Network CAPEX:</strong> ${escapeHtml(formatCurrency(budget.networkCapexMin))} to ${escapeHtml(formatCurrency(budget.networkCapexMax))}</p>
@@ -516,6 +532,7 @@ function renderDashboard() {
       <p class="budget-kpi"><strong>Acronis OPEX:</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
       <p class="budget-kpi"><strong>A5 OPEX:</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
       <p class="budget-kpi"><strong>Migration assessment:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
+      <p class="budget-kpi"><strong>Implementation services (scoped):</strong> ${escapeHtml(formatCurrency(budget.implementationTotal))}</p>
       <details class="details-list lifecycle-dropdown budget-full-row" open>
         <summary><strong>Network infrastructure CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
@@ -546,6 +563,14 @@ function renderDashboard() {
           ${renderBoardColumn("Scope included/excluded", "stage-other", acronisScopeItems, "No scope notes.")}
           ${renderBoardColumn("Priced monthly items", "stage-progress", acronisPricedItems, "No priced monthly items.")}
           ${renderBoardColumn("Unpriced monthly items", "stage-remediation", acronisUnpricedItems, "No unpriced monthly items.")}
+        </div>
+      </details>
+      <details class="details-list lifecycle-dropdown budget-full-row" open>
+        <summary><strong>Implementation services estimate (scoped)</strong></summary>
+        <div class="migration-board lifecycle-status-board">
+          ${renderBoardColumn("Infrastructure & network implementation", "stage-progress", implementationInfraItems, "No infrastructure implementation items.")}
+          ${renderBoardColumn("Cyber controls implementation", "stage-progress", implementationCyberItems, "No cyber implementation items.")}
+          ${renderBoardColumn("Client rollout implementation", "stage-progress", implementationClientItems, "No client rollout items.")}
         </div>
       </details>
       <p class="muted budget-full-row budget-footer"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB. Where GB values are not present in workbook data, this model uses explicit estimates of 3,000GB cloud backup and 256GB hot compute. Local backup/recovery are modelled at £0 where cloud/local prerequisites apply. A5 OPEX is teachers only (${budget.teacherCountLabel} x £8/month; students excluded). Migration estimate uses the higher of £2,400 or £7.20 per user. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}${budget.hasCloudBackupGb ? "" : " (estimated)"}, Hot DR GB ${budget.hotDrComputeGbLabel}${budget.hasHotDrComputeGb ? "" : " (estimated)"}, Mailboxes ${budget.mailboxCountLabel}.</p>
@@ -662,7 +687,7 @@ function evaluateLifecycleSpendPriority(lifecycle) {
   };
 }
 
-function buildBudgetOverview({ infra, network, client, migration, dashboardRows, overviewRows }) {
+function buildBudgetOverview({ infra, network, client, cyber, migration, dashboardRows, overviewRows }) {
   const counts = extractCommercialCounts([...(dashboardRows || []), ...(overviewRows || [])]);
   const teachers = counts.teachers;
   const students = counts.students;
@@ -726,6 +751,21 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
   const a5Monthly = (teachers || 0) * 8;
   const migrationByUsers = (users || 0) * 7.2;
   const migrationCost = Math.max(2400, migrationByUsers);
+  const serverEngineeringCost = physicalServers * 2500;
+  const switchEngineeringCost = edgeCount * 300;
+  const coreSwitchSetupDays = coreCount;
+  const coreSwitchSetupCost = coreSwitchSetupDays * 800;
+  const wifiSetupDays = apCount > 0 ? Math.ceil((apCount / 25) * 5) : 0;
+  const wifiSetupCost = wifiSetupDays * 800;
+  const cyberControlCount = Number(cyber?.totalControls || 0);
+  const cyberImplementationCost = cyberControlCount * 3200;
+  const clientRolloutCost = deviceBase * 30;
+  const implementationTotal = serverEngineeringCost
+    + switchEngineeringCost
+    + coreSwitchSetupCost
+    + wifiSetupCost
+    + cyberImplementationCost
+    + clientRolloutCost;
 
   return {
     edgeCount,
@@ -768,6 +808,16 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     acronisMonthly,
     a5Monthly,
     migrationCost,
+    serverEngineeringCost,
+    switchEngineeringCost,
+    coreSwitchSetupDays,
+    coreSwitchSetupCost,
+    wifiSetupDays,
+    wifiSetupCost,
+    cyberControlCount,
+    cyberImplementationCost,
+    clientRolloutCost,
+    implementationTotal,
   };
 }
 
