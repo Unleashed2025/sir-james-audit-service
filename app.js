@@ -454,6 +454,8 @@ function renderDashboard() {
       <details class="details-list lifecycle-dropdown" open>
         <summary><strong>Acronis monthly breakdown (real unit model)</strong></summary>
         <ul class="list">
+          <li><strong>Device base used for AV/EDR/RMM:</strong> ${budget.deviceCountLabel} client devices (Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Mac ${budget.macCount}, Other ${budget.otherClientCount}).</li>
+          <li><strong>Explicitly excluded from AV/EDR base:</strong> Core switches ${budget.coreCount}, Edge switches ${budget.edgeCount}, Wi-Fi APs ${budget.apCount}, Firewalls ${budget.firewallCount}.</li>
           <li>RMM (${budget.deviceCountLabel} devices) x £0.45 = ${escapeHtml(formatCurrencyMonthly(budget.acronisRmmMonthly))}</li>
           <li>EDR / anti-virus (${budget.deviceCountLabel} devices) x £0.50 = ${escapeHtml(formatCurrencyMonthly(budget.acronisEdrMonthly))}</li>
           <li>Email security (${budget.userCountLabel} users) x £0.80 = ${escapeHtml(formatCurrencyMonthly(budget.acronisEmailSecurityMonthly))}</li>
@@ -549,7 +551,10 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
   const windowsCount = Number(client.windowsDevices || 0);
   const chromebookCount = Number(client.chromebooks || 0);
   const tabletCount = Number(client.tabletDevices || 0);
+  const macCount = Number(client.macDevices || 0);
+  const otherClientCount = Number(client.otherDevices || 0);
   const physicalServers = Number(infra.physical || 0);
+  const firewallCount = Number(network.firewalls || 0);
 
   const edgeMin = edgeCount * 175;
   const edgeMax = edgeCount * 400;
@@ -591,7 +596,10 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     windowsCount,
     chromebookCount,
     tabletCount,
+    macCount,
+    otherClientCount,
     physicalServers,
+    firewallCount,
     userCountLabel: users === null ? "Not found" : String(users),
     studentCountLabel: students === null ? "Not found" : String(students),
     mailboxCountLabel: mailboxes === null ? "Not found" : String(mailboxes),
