@@ -484,6 +484,7 @@ function renderDashboard() {
     ];
 
     const acronisScopeItems = [
+      "Control coverage: 10 of 11 cyber control areas can be consolidated via Acronis-aligned services (MFA remains Microsoft-native).",
       `Device base used for AV/EDR/RMM: ${budget.deviceCountLabel} client devices (Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Mac ${budget.macCount}, Other ${budget.otherClientCount}).`,
       `Excluded from AV/EDR base: Core switches ${budget.coreCount}, Edge switches ${budget.edgeCount}, Wi-Fi APs ${budget.apCount}, Firewalls ${budget.firewallCount}.`,
       `User base used for user-priced services: ${budget.userCountLabel} (Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}).`,
@@ -499,10 +500,11 @@ function renderDashboard() {
       `Disaster recovery hot compute (${budget.hotDrComputeGbLabel} GB) x £0.11 = ${formatCurrencyMonthly(budget.acronisHotDrMonthly)}`,
       `Local backup with Acronis cloud backup = ${formatCurrencyMonthly(budget.acronisLocalBackupMonthly)}`,
       `Local recovery on local hardware = ${formatCurrencyMonthly(budget.acronisLocalRecoveryMonthly)}`,
+      `DLP control cost in this model = £0.00 (covered under A5 path).`,
+      `Cloud app protection cost in this model = £0.00 (covered under A5 path).`,
     ];
     const acronisUnpricedItems = [
-      `DLP (${budget.userCountLabel} users): rate not provided (currently £0.00 in model).`,
-      `Cloud apps (${budget.userCountLabel} users): rate not provided (currently £0.00 in model).`,
+      "MFA / Conditional Access is covered under existing Microsoft licensing (A3/A5) and is not an extra Acronis cost.",
     ];
 
     els.budgetSummary.innerHTML = `
