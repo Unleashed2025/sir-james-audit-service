@@ -599,6 +599,17 @@ th {
   border-style: dashed;
 }
 
+#budget-summary .budget-full-row {
+  grid-column: 1 / -1;
+}
+
+#budget-summary .budget-inline-note {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .basics-table-wrap {
   max-height: 360px;
 }
