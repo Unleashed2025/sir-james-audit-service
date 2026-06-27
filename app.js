@@ -439,7 +439,32 @@ function renderDashboard() {
       <p><strong>Acronis OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.acronisMonthly))}</p>
       <p><strong>A5 OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
       <p><strong>Migration estimate:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
-      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month (for example RMM = £0.45 per device per month). Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Users ${budget.userCountLabel}, Mailboxes ${budget.mailboxCountLabel}, Teachers ${budget.teacherCountLabel}.</p>
+      <details class="details-list lifecycle-dropdown" open>
+        <summary><strong>CAPEX item breakdown</strong></summary>
+        <ul class="list">
+          <li>Edge switches (${budget.edgeCount}) x £175 to £400 = ${escapeHtml(formatCurrency(budget.edgeCount * 175))} to ${escapeHtml(formatCurrency(budget.edgeCount * 400))}</li>
+          <li>Core switches (${budget.coreCount}) x £1,600 = ${escapeHtml(formatCurrency(budget.coreCount * 1600))}</li>
+          <li>Wi-Fi 7 APs (${budget.apCount}) x £270 = ${escapeHtml(formatCurrency(budget.apCount * 270))}</li>
+          <li>Windows devices (${budget.windowsCount}) x £600 = ${escapeHtml(formatCurrency(budget.windowsCount * 600))}</li>
+          <li>Chromebooks (${budget.chromebookCount}) x £300 = ${escapeHtml(formatCurrency(budget.chromebookCount * 300))}</li>
+          <li>iPad/Tablet (${budget.tabletCount}) x £350 = ${escapeHtml(formatCurrency(budget.tabletCount * 350))}</li>
+          <li>Physical servers (${budget.physicalServers}) x £15,000 = ${escapeHtml(formatCurrency(budget.physicalServers * 15000))}</li>
+        </ul>
+      </details>
+      <details class="details-list lifecycle-dropdown" open>
+        <summary><strong>Acronis monthly breakdown (real unit model)</strong></summary>
+        <ul class="list">
+          <li>RMM (${budget.deviceCountLabel} devices) x £0.45 = ${escapeHtml(formatCurrencyMonthly(budget.acronisRmmMonthly))}</li>
+          <li>EDR / anti-virus (${budget.deviceCountLabel} devices) x £0.50 = ${escapeHtml(formatCurrencyMonthly(budget.acronisEdrMonthly))}</li>
+          <li>Email security (${budget.userCountLabel} users) x £0.80 = ${escapeHtml(formatCurrencyMonthly(budget.acronisEmailSecurityMonthly))}</li>
+          <li>Microsoft 365 backup (${budget.userCountLabel} users) x £0.75 = ${escapeHtml(formatCurrencyMonthly(budget.acronisM365BackupMonthly))}</li>
+          <li>Security awareness training (${budget.userCountLabel} users) x £1.20 = ${escapeHtml(formatCurrencyMonthly(budget.acronisSatMonthly))}</li>
+          <li>ISPM (${budget.userCountLabel} users) x £0.50 = ${escapeHtml(formatCurrencyMonthly(budget.acronisIspmMonthly))}</li>
+          <li>DLP (${budget.userCountLabel} users): rate not provided (currently £0.00 in model)</li>
+          <li>Cloud apps (${budget.userCountLabel} users): rate not provided (currently £0.00 in model)</li>
+        </ul>
+      </details>
+      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Mailboxes ${budget.mailboxCountLabel}.</p>
     `;
   }
 }
@@ -454,21 +479,33 @@ function parseNumberLike(value) {
 }
 
 function extractCommercialCounts(rows) {
-  const out = { users: null, mailboxes: null, teachers: null };
+  const out = { users: null, mailboxes: null, teachers: null, students: null, devices: null };
   const setIfEmpty = (key, n) => {
     if (out[key] === null && Number.isFinite(n) && n >= 0) out[key] = n;
   };
+  const findNextNumeric = (row, startIndex) => {
+    for (let j = startIndex; j < row.length; j += 1) {
+      const n = parseNumberLike(row[j]);
+      if (n !== null) return n;
+    }
+    return null;
+  };
   for (const row of rows || []) {
     if (!Array.isArray(row)) continue;
-    for (let i = 0; i < row.length - 1; i += 1) {
+    for (let i = 0; i < row.length; i += 1) {
       const key = normKey(row[i]);
       if (!key) continue;
-      const n = parseNumberLike(row[i + 1]);
+      const n = findNextNumeric(row, i + 1);
       if (n === null) continue;
       if (key.includes("mailbox")) setIfEmpty("mailboxes", n);
       if (key.includes("teacher") || key.includes("staff")) setIfEmpty("teachers", n);
-      if (key.includes("user") || key.includes("pupil")) setIfEmpty("users", n);
+      if (key.includes("student") || key.includes("pupil")) setIfEmpty("students", n);
+      if (key.includes("device") || key.includes("endpoint")) setIfEmpty("devices", n);
+      if (key.includes("user") && !key.includes("device")) setIfEmpty("users", n);
     }
+  }
+  if (out.users === null && (out.teachers !== null || out.students !== null)) {
+    out.users = (out.teachers || 0) + (out.students || 0);
   }
   return out;
 }
@@ -478,11 +515,19 @@ function formatCurrency(value) {
   return `£${n.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 }
 
+function formatCurrencyMonthly(value) {
+  const n = Number(value || 0);
+  return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function buildBudgetOverview({ infra, network, client, migration, dashboardRows, overviewRows }) {
   const counts = extractCommercialCounts([...(dashboardRows || []), ...(overviewRows || [])]);
-  const users = counts.users;
+  const teachers = counts.teachers;
+  const students = counts.students;
+  const users = (teachers !== null || students !== null)
+    ? ((teachers || 0) + (students || 0))
+    : counts.users;
   const mailboxes = counts.mailboxes !== null ? counts.mailboxes : users;
-  const teachers = counts.teachers !== null ? counts.teachers : users;
 
   const edgeCount = Number(network.edge || 0);
   const coreCount = Number(network.core || 0);
@@ -504,8 +549,23 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
   const totalCapexMin = networkCapexMin + clientCapex + serverCapex;
   const totalCapexMax = networkCapexMax + clientCapex + serverCapex;
 
-  const deviceBase = Number(client.totalQuantity || 0);
-  const acronisMonthly = (deviceBase * 0.45) + ((users || 0) * 0.75) + ((users || 0) * 1.2) + ((users || 0) * 0.5);
+  const deviceBase = Number(counts.devices !== null ? counts.devices : (client.totalQuantity || 0));
+  const acronisRmmMonthly = deviceBase * 0.45;
+  const acronisEdrMonthly = deviceBase * 0.5;
+  const acronisEmailSecurityMonthly = (users || 0) * 0.8;
+  const acronisM365BackupMonthly = (users || 0) * 0.75;
+  const acronisSatMonthly = (users || 0) * 1.2;
+  const acronisIspmMonthly = (users || 0) * 0.5;
+  const acronisDlpMonthly = 0;
+  const acronisCloudAppsMonthly = 0;
+  const acronisMonthly = acronisRmmMonthly
+    + acronisEdrMonthly
+    + acronisEmailSecurityMonthly
+    + acronisM365BackupMonthly
+    + acronisSatMonthly
+    + acronisIspmMonthly
+    + acronisDlpMonthly
+    + acronisCloudAppsMonthly;
   const a5Monthly = (teachers || 0) * 8;
   const migrationByUsers = (users || 0) * 7.2;
   const migrationCost = Math.max(7200, migrationByUsers);
@@ -519,14 +579,24 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     tabletCount,
     physicalServers,
     userCountLabel: users === null ? "Not found" : String(users),
+    studentCountLabel: students === null ? "Not found" : String(students),
     mailboxCountLabel: mailboxes === null ? "Not found" : String(mailboxes),
     teacherCountLabel: teachers === null ? "Not found" : String(teachers),
+    deviceCountLabel: counts.devices === null ? String(deviceBase) : String(counts.devices),
     networkCapexMin,
     networkCapexMax,
     clientCapex,
     serverCapex,
     totalCapexMin,
     totalCapexMax,
+    acronisRmmMonthly,
+    acronisEdrMonthly,
+    acronisEmailSecurityMonthly,
+    acronisM365BackupMonthly,
+    acronisSatMonthly,
+    acronisIspmMonthly,
+    acronisDlpMonthly,
+    acronisCloudAppsMonthly,
     acronisMonthly,
     a5Monthly,
     migrationCost,
