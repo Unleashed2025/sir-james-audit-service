@@ -431,18 +431,43 @@ function renderDashboard() {
   }
 
   if (els.budgetSummary) {
+    const networkSpendPriority = evaluateLifecycleSpendPriority(network.lifecycle);
+    const serverSpendPriority = evaluateLifecycleSpendPriority(infra.lifecycle);
+    const clientSpendPriority = evaluateLifecycleSpendPriority(client.lifecycle);
+
     const capexNetworkItems = [
       `Edge switches (${budget.edgeCount}) x £175 to £400 = ${formatCurrency(budget.edgeCount * 175)} to ${formatCurrency(budget.edgeCount * 400)}`,
       `Core switches (${budget.coreCount}) x £1,600 = ${formatCurrency(budget.coreCount * 1600)}`,
       `Wi-Fi 7 APs (${budget.apCount}) x £270 = ${formatCurrency(budget.apCount * 270)}`,
     ];
+    const capexNetworkPriority = [
+      `Priority: ${networkSpendPriority.level}`,
+      `End of support flagged: ${networkSpendPriority.supportCount}`,
+      `End of service life flagged: ${networkSpendPriority.serviceLifeCount}`,
+      `End of warranty flagged: ${networkSpendPriority.warrantyCount}`,
+      networkSpendPriority.rationale,
+    ];
     const capexServerItems = [
       `Physical servers (${budget.physicalServers}) x £15,000 = ${formatCurrency(budget.physicalServers * 15000)}`,
+    ];
+    const capexServerPriority = [
+      `Priority: ${serverSpendPriority.level}`,
+      `End of support flagged: ${serverSpendPriority.supportCount}`,
+      `End of service life flagged: ${serverSpendPriority.serviceLifeCount}`,
+      `End of warranty flagged: ${serverSpendPriority.warrantyCount}`,
+      serverSpendPriority.rationale,
     ];
     const capexClientItems = [
       `Windows devices (${budget.windowsCount}) x £600 = ${formatCurrency(budget.windowsCount * 600)}`,
       `Chromebooks (${budget.chromebookCount}) x £300 = ${formatCurrency(budget.chromebookCount * 300)}`,
       `iPad/Tablet (${budget.tabletCount}) x £350 = ${formatCurrency(budget.tabletCount * 350)}`,
+    ];
+    const capexClientPriority = [
+      `Priority: ${clientSpendPriority.level}`,
+      `End of support flagged: ${clientSpendPriority.supportCount}`,
+      `End of service life flagged: ${clientSpendPriority.serviceLifeCount}`,
+      `End of warranty flagged: ${clientSpendPriority.warrantyCount}`,
+      clientSpendPriority.rationale,
     ];
     const capexNetworkRules = [
       "Network estate is one-off CAPEX.",
@@ -470,6 +495,10 @@ function renderDashboard() {
       `Microsoft 365 backup (${budget.userCountLabel} users) x £0.75 = ${formatCurrencyMonthly(budget.acronisM365BackupMonthly)}`,
       `Security awareness training (${budget.userCountLabel} users) x £1.20 = ${formatCurrencyMonthly(budget.acronisSatMonthly)}`,
       `ISPM (${budget.userCountLabel} users) x £0.50 = ${formatCurrencyMonthly(budget.acronisIspmMonthly)}`,
+      `Cloud backup (${budget.cloudBackupGbLabel} GB) x £0.10 = ${formatCurrencyMonthly(budget.acronisCloudBackupMonthly)}`,
+      `Disaster recovery hot compute (${budget.hotDrComputeGbLabel} GB) x £0.11 = ${formatCurrencyMonthly(budget.acronisHotDrMonthly)}`,
+      `Local backup with Acronis cloud backup = ${formatCurrencyMonthly(budget.acronisLocalBackupMonthly)}`,
+      `Local recovery on local hardware = ${formatCurrencyMonthly(budget.acronisLocalRecoveryMonthly)}`,
     ];
     const acronisUnpricedItems = [
       `DLP (${budget.userCountLabel} users): rate not provided (currently £0.00 in model).`,
@@ -488,6 +517,7 @@ function renderDashboard() {
         <summary><strong>Network infrastructure CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Network CAPEX items", "stage-progress", capexNetworkItems, "No network CAPEX items.")}
+          ${renderBoardColumn("Spend priority (lifecycle-based)", networkSpendPriority.toneClass, capexNetworkPriority, "No lifecycle priority data.")}
           ${renderBoardColumn("Network CAPEX assumptions", "stage-other", capexNetworkRules, "No network CAPEX assumptions listed.")}
         </div>
       </details>
@@ -495,6 +525,7 @@ function renderDashboard() {
         <summary><strong>Server infrastructure CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Server CAPEX items", "stage-remediation", capexServerItems, "No server CAPEX items.")}
+          ${renderBoardColumn("Spend priority (lifecycle-based)", serverSpendPriority.toneClass, capexServerPriority, "No lifecycle priority data.")}
           ${renderBoardColumn("Server CAPEX assumptions", "stage-other", capexServerRules, "No server CAPEX assumptions listed.")}
         </div>
       </details>
@@ -502,6 +533,7 @@ function renderDashboard() {
         <summary><strong>Client compute CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Client CAPEX items", "stage-progress", capexClientItems, "No client CAPEX items.")}
+          ${renderBoardColumn("Spend priority (lifecycle-based)", clientSpendPriority.toneClass, capexClientPriority, "No lifecycle priority data.")}
           ${renderBoardColumn("Client CAPEX assumptions", "stage-other", capexClientRules, "No client CAPEX assumptions listed.")}
         </div>
       </details>
@@ -513,7 +545,7 @@ function renderDashboard() {
           ${renderBoardColumn("Unpriced monthly items", "stage-remediation", acronisUnpricedItems, "No unpriced monthly items.")}
         </div>
       </details>
-      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Mailboxes ${budget.mailboxCountLabel}.</p>
+      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB; local backup/recovery are modelled at £0 where cloud/local prerequisites apply. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}, Hot DR GB ${budget.hotDrComputeGbLabel}, Mailboxes ${budget.mailboxCountLabel}.</p>
     `;
   }
 }
@@ -528,7 +560,15 @@ function parseNumberLike(value) {
 }
 
 function extractCommercialCounts(rows) {
-  const out = { users: null, mailboxes: null, teachers: null, students: null, devices: null };
+  const out = {
+    users: null,
+    mailboxes: null,
+    teachers: null,
+    students: null,
+    devices: null,
+    cloudBackupGb: null,
+    hotDrComputeGb: null,
+  };
   const setIfEmpty = (key, n) => {
     if (out[key] === null && Number.isFinite(n) && n >= 0) out[key] = n;
   };
@@ -549,6 +589,14 @@ function extractCommercialCounts(rows) {
       if (key.includes("mailbox")) setIfEmpty("mailboxes", n);
       if (key.includes("teacher") || key.includes("staff")) setIfEmpty("teachers", n);
       if (key.includes("student") || key.includes("pupil")) setIfEmpty("students", n);
+      if (
+        key.includes("cloud backup") &&
+        (key.includes("gb") || key.includes("storage") || key.includes("capacity") || key.includes("size"))
+      ) setIfEmpty("cloudBackupGb", n);
+      if (
+        (key.includes("hot dr") || key.includes("disaster recovery")) &&
+        (key.includes("gb") || key.includes("compute") || key.includes("capacity") || key.includes("size"))
+      ) setIfEmpty("hotDrComputeGb", n);
       const isClientDeviceKey =
         key.includes("client device") ||
         key.includes("endpoint") ||
@@ -581,6 +629,34 @@ function formatCurrency(value) {
 function formatCurrencyMonthly(value) {
   const n = Number(value || 0);
   return `£${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function evaluateLifecycleSpendPriority(lifecycle) {
+  const warrantyCount = (lifecycle?.flagged?.warranty || []).length;
+  const supportCount = (lifecycle?.flagged?.support || []).length;
+  const serviceLifeCount = (lifecycle?.flagged?.serviceLife || []).length;
+  let level = "Monitored";
+  let rationale = "No flagged lifecycle dates currently recorded.";
+  let toneClass = "stage-ready";
+
+  if (supportCount > 0) {
+    level = "Critical";
+    rationale = "End-of-support passed on one or more assets; replacement spend should be prioritised.";
+    toneClass = "stage-remediation";
+  } else if (serviceLifeCount > 0 || warrantyCount > 0) {
+    level = "Concern";
+    rationale = "Warranty/service-life flags are present; plan replacement or remediation in current cycle.";
+    toneClass = "stage-progress";
+  }
+
+  return {
+    level,
+    rationale,
+    toneClass,
+    warrantyCount,
+    supportCount,
+    serviceLifeCount,
+  };
 }
 
 function buildBudgetOverview({ infra, network, client, migration, dashboardRows, overviewRows }) {
@@ -624,6 +700,12 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
   const acronisIspmMonthly = (users || 0) * 0.5;
   const acronisDlpMonthly = 0;
   const acronisCloudAppsMonthly = 0;
+  const cloudBackupGb = Number(counts.cloudBackupGb || 0);
+  const hotDrComputeGb = Number(counts.hotDrComputeGb || 0);
+  const acronisCloudBackupMonthly = cloudBackupGb * 0.10;
+  const acronisHotDrMonthly = hotDrComputeGb * 0.11;
+  const acronisLocalBackupMonthly = 0;
+  const acronisLocalRecoveryMonthly = 0;
   const acronisMonthly = acronisRmmMonthly
     + acronisEdrMonthly
     + acronisEmailSecurityMonthly
@@ -631,7 +713,11 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     + acronisSatMonthly
     + acronisIspmMonthly
     + acronisDlpMonthly
-    + acronisCloudAppsMonthly;
+    + acronisCloudAppsMonthly
+    + acronisCloudBackupMonthly
+    + acronisHotDrMonthly
+    + acronisLocalBackupMonthly
+    + acronisLocalRecoveryMonthly;
   const a5Monthly = (teachers || 0) * 8;
   const migrationByUsers = (users || 0) * 7.2;
   const migrationCost = Math.max(7200, migrationByUsers);
@@ -652,6 +738,8 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     mailboxCountLabel: mailboxes === null ? "Not found" : String(mailboxes),
     teacherCountLabel: teachers === null ? "Not found" : String(teachers),
     deviceCountLabel: String(deviceBase),
+    cloudBackupGbLabel: counts.cloudBackupGb === null ? "Not provided" : String(counts.cloudBackupGb),
+    hotDrComputeGbLabel: counts.hotDrComputeGb === null ? "Not provided" : String(counts.hotDrComputeGb),
     networkCapexMin,
     networkCapexMax,
     clientCapex,
@@ -666,6 +754,10 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     acronisIspmMonthly,
     acronisDlpMonthly,
     acronisCloudAppsMonthly,
+    acronisCloudBackupMonthly,
+    acronisHotDrMonthly,
+    acronisLocalBackupMonthly,
+    acronisLocalRecoveryMonthly,
     acronisMonthly,
     a5Monthly,
     migrationCost,
