@@ -497,12 +497,16 @@ function renderDashboard() {
       `Microsoft 365 backup (${budget.userCountLabel} users) x £0.75 = ${formatCurrencyMonthly(budget.acronisM365BackupMonthly)}`,
       `Security awareness training (${budget.userCountLabel} users) x £1.20 = ${formatCurrencyMonthly(budget.acronisSatMonthly)}`,
       `ISPM (${budget.userCountLabel} users) x £0.50 = ${formatCurrencyMonthly(budget.acronisIspmMonthly)}`,
-      `Cloud backup (${budget.cloudBackupGbLabel} GB) x £0.10 = ${formatCurrencyMonthly(budget.acronisCloudBackupMonthly)}`,
-      `Disaster recovery hot compute (${budget.hotDrComputeGbLabel} GB) x £0.11 = ${formatCurrencyMonthly(budget.acronisHotDrMonthly)}`,
+      `DLP (${budget.userCountLabel} users) x £1.20 = ${formatCurrencyMonthly(budget.acronisDlpMonthly)}`,
+      `Cloud app protection (${budget.userCountLabel} users) x £1.10 = ${formatCurrencyMonthly(budget.acronisCloudAppsMonthly)}`,
+      budget.hasCloudBackupGb
+        ? `Cloud backup (${budget.cloudBackupGbLabel} GB) x £0.10 = ${formatCurrencyMonthly(budget.acronisCloudBackupMonthly)}`
+        : "Cloud backup = TBD (GB quantity not provided in workbook yet).",
+      budget.hasHotDrComputeGb
+        ? `Disaster recovery hot compute (${budget.hotDrComputeGbLabel} GB) x £0.11 = ${formatCurrencyMonthly(budget.acronisHotDrMonthly)}`
+        : "Disaster recovery hot compute = TBD (GB quantity not provided in workbook yet).",
       `Server backup (local backup) with Acronis cloud backup = ${formatCurrencyMonthly(budget.acronisLocalBackupMonthly)}`,
       `Local recovery on local hardware = ${formatCurrencyMonthly(budget.acronisLocalRecoveryMonthly)}`,
-      `DLP control cost in this model = £0.00 (covered under A5 path).`,
-      `Cloud app protection cost in this model = £0.00 (covered under A5 path).`,
     ];
     const acronisUnpricedItems = [
       "MFA / Conditional Access is covered under existing Microsoft licensing (A3/A5) and is not an extra Acronis cost.",
@@ -548,7 +552,7 @@ function renderDashboard() {
           ${renderBoardColumn("Unpriced monthly items", "stage-remediation", acronisUnpricedItems, "No unpriced monthly items.")}
         </div>
       </details>
-      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB; local backup/recovery are modelled at £0 where cloud/local prerequisites apply. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}, Hot DR GB ${budget.hotDrComputeGbLabel}, Mailboxes ${budget.mailboxCountLabel}.</p>
+      <p class="muted"><strong>Budgetary only:</strong> This is an indicative planning estimate, not a supplier quotation. Servers, switching, Wi‑Fi and client device costs are treated as one-off CAPEX. Cyber pricing rates are treated as £ per unit per month. Edge switch pricing uses range (£175–£400 each); core switch pricing uses Ubiquiti 48-port at £1,600 each. Acronis cloud backup is modelled at £0.10 per GB and hot DR compute at £0.11 per GB (both shown as TBD until GB quantities are present in workbook data). Local backup/recovery are modelled at £0 where cloud/local prerequisites apply. Counts used: Edge ${budget.edgeCount}, Core ${budget.coreCount}, APs ${budget.apCount}, Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Physical servers ${budget.physicalServers}, Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}, Total users ${budget.userCountLabel}, Devices ${budget.deviceCountLabel}, Cloud backup GB ${budget.cloudBackupGbLabel}, Hot DR GB ${budget.hotDrComputeGbLabel}, Mailboxes ${budget.mailboxCountLabel}.</p>
     `;
   }
 }
@@ -701,12 +705,14 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
   const acronisM365BackupMonthly = (users || 0) * 0.75;
   const acronisSatMonthly = (users || 0) * 1.2;
   const acronisIspmMonthly = (users || 0) * 0.5;
-  const acronisDlpMonthly = 0;
-  const acronisCloudAppsMonthly = 0;
+  const acronisDlpMonthly = (users || 0) * 1.2;
+  const acronisCloudAppsMonthly = (users || 0) * 1.1;
+  const hasCloudBackupGb = counts.cloudBackupGb !== null;
+  const hasHotDrComputeGb = counts.hotDrComputeGb !== null;
   const cloudBackupGb = Number(counts.cloudBackupGb || 0);
   const hotDrComputeGb = Number(counts.hotDrComputeGb || 0);
-  const acronisCloudBackupMonthly = cloudBackupGb * 0.10;
-  const acronisHotDrMonthly = hotDrComputeGb * 0.11;
+  const acronisCloudBackupMonthly = hasCloudBackupGb ? (cloudBackupGb * 0.10) : 0;
+  const acronisHotDrMonthly = hasHotDrComputeGb ? (hotDrComputeGb * 0.11) : 0;
   const acronisLocalBackupMonthly = 0;
   const acronisLocalRecoveryMonthly = 0;
   const acronisMonthly = acronisRmmMonthly
@@ -743,6 +749,8 @@ function buildBudgetOverview({ infra, network, client, migration, dashboardRows,
     deviceCountLabel: String(deviceBase),
     cloudBackupGbLabel: counts.cloudBackupGb === null ? "Not provided" : String(counts.cloudBackupGb),
     hotDrComputeGbLabel: counts.hotDrComputeGb === null ? "Not provided" : String(counts.hotDrComputeGb),
+    hasCloudBackupGb,
+    hasHotDrComputeGb,
     networkCapexMin,
     networkCapexMax,
     clientCapex,
