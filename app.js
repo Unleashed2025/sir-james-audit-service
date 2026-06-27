@@ -436,16 +436,26 @@ function renderDashboard() {
       `Core switches (${budget.coreCount}) x £1,600 = ${formatCurrency(budget.coreCount * 1600)}`,
       `Wi-Fi 7 APs (${budget.apCount}) x £270 = ${formatCurrency(budget.apCount * 270)}`,
     ];
-    const capexClientServerItems = [
+    const capexServerItems = [
+      `Physical servers (${budget.physicalServers}) x £15,000 = ${formatCurrency(budget.physicalServers * 15000)}`,
+    ];
+    const capexClientItems = [
       `Windows devices (${budget.windowsCount}) x £600 = ${formatCurrency(budget.windowsCount * 600)}`,
       `Chromebooks (${budget.chromebookCount}) x £300 = ${formatCurrency(budget.chromebookCount * 300)}`,
       `iPad/Tablet (${budget.tabletCount}) x £350 = ${formatCurrency(budget.tabletCount * 350)}`,
-      `Physical servers (${budget.physicalServers}) x £15,000 = ${formatCurrency(budget.physicalServers * 15000)}`,
     ];
-    const capexRules = [
-      "Hardware and network are one-off CAPEX.",
+    const capexNetworkRules = [
+      "Network estate is one-off CAPEX.",
       "Edge switch estimate shown as planning range.",
       "Core switch baseline uses Ubiquiti 48-port at £1,600 each.",
+    ];
+    const capexServerRules = [
+      "Physical server estimate is one-off CAPEX.",
+      "Use this as planning baseline, not a supplier quote.",
+    ];
+    const capexClientRules = [
+      "Client devices are one-off CAPEX refresh assumptions.",
+      "Unsupported OS cohorts should be prioritised first.",
     ];
 
     const acronisScopeItems = [
@@ -475,15 +485,28 @@ function renderDashboard() {
       <p><strong>A5 OPEX (monthly):</strong> ${escapeHtml(formatCurrency(budget.a5Monthly))}</p>
       <p><strong>Migration estimate:</strong> ${escapeHtml(formatCurrency(budget.migrationCost))}</p>
       <details class="details-list lifecycle-dropdown" open>
-        <summary><strong>CAPEX item breakdown</strong></summary>
+        <summary><strong>Network infrastructure CAPEX breakdown</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Network CAPEX items", "stage-progress", capexNetworkItems, "No network CAPEX items.")}
-          ${renderBoardColumn("Client/server CAPEX items", "stage-remediation", capexClientServerItems, "No client/server CAPEX items.")}
-          ${renderBoardColumn("CAPEX assumptions", "stage-other", capexRules, "No CAPEX assumptions listed.")}
+          ${renderBoardColumn("Network CAPEX assumptions", "stage-other", capexNetworkRules, "No network CAPEX assumptions listed.")}
         </div>
       </details>
       <details class="details-list lifecycle-dropdown" open>
-        <summary><strong>Acronis monthly breakdown (real unit model)</strong></summary>
+        <summary><strong>Server infrastructure CAPEX breakdown</strong></summary>
+        <div class="migration-board lifecycle-status-board">
+          ${renderBoardColumn("Server CAPEX items", "stage-remediation", capexServerItems, "No server CAPEX items.")}
+          ${renderBoardColumn("Server CAPEX assumptions", "stage-other", capexServerRules, "No server CAPEX assumptions listed.")}
+        </div>
+      </details>
+      <details class="details-list lifecycle-dropdown" open>
+        <summary><strong>Client compute CAPEX breakdown</strong></summary>
+        <div class="migration-board lifecycle-status-board">
+          ${renderBoardColumn("Client CAPEX items", "stage-progress", capexClientItems, "No client CAPEX items.")}
+          ${renderBoardColumn("Client CAPEX assumptions", "stage-other", capexClientRules, "No client CAPEX assumptions listed.")}
+        </div>
+      </details>
+      <details class="details-list lifecycle-dropdown" open>
+        <summary><strong>Cyber controls OPEX breakdown (Acronis)</strong></summary>
         <div class="migration-board lifecycle-status-board">
           ${renderBoardColumn("Scope included/excluded", "stage-other", acronisScopeItems, "No scope notes.")}
           ${renderBoardColumn("Priced monthly items", "stage-progress", acronisPricedItems, "No priced monthly items.")}
