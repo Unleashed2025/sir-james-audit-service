@@ -2070,6 +2070,17 @@ function exportWeb() {
 
 async function exportPdf() {
   if (!workbook || !latestReport) return;
+  let fallbackWindow = null;
+  try {
+    fallbackWindow = window.open("", "_blank");
+    if (fallbackWindow) {
+      fallbackWindow.document.open();
+      fallbackWindow.document.write("<!doctype html><html><head><title>Preparing PDF...</title></head><body style=\"font-family:Segoe UI,Arial,sans-serif;padding:20px;\">Preparing PDF export...</body></html>");
+      fallbackWindow.document.close();
+    }
+  } catch (_) {
+    fallbackWindow = null;
+  }
   if (els.status) els.status.textContent = "Generating PDF export...";
   try {
     await ensurePdfLibrariesLoaded();
@@ -2494,9 +2505,12 @@ async function exportPdf() {
   }
 
     doc.save("audit-dashboard-export.pdf");
+    if (fallbackWindow && !fallbackWindow.closed) {
+      try { fallbackWindow.close(); } catch (_) { /* no-op */ }
+    }
     if (els.status) els.status.textContent = "PDF export downloaded.";
   } catch (error) {
-    const fallbackOk = exportPdfPrintFallback();
+    const fallbackOk = exportPdfPrintFallback(fallbackWindow);
     if (els.status) {
       els.status.textContent = fallbackOk
         ? "PDF library unavailable. Opened print view fallback for Save as PDF."
@@ -2506,10 +2520,10 @@ async function exportPdf() {
   }
 }
 
-function exportPdfPrintFallback() {
+function exportPdfPrintFallback(existingWindow) {
   try {
     const html = buildExportHtml("pdf");
-    const win = window.open("", "_blank");
+    const win = existingWindow && !existingWindow.closed ? existingWindow : window.open("", "_blank");
     if (!win) return false;
     win.document.open();
     win.document.write(html);
