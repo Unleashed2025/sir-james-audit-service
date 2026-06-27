@@ -488,6 +488,7 @@ function renderDashboard() {
       `Device base used for AV/EDR/RMM: ${budget.deviceCountLabel} client devices (Windows ${budget.windowsCount}, Chromebooks ${budget.chromebookCount}, iPad/Tablet ${budget.tabletCount}, Mac ${budget.macCount}, Other ${budget.otherClientCount}).`,
       `Excluded from AV/EDR base: Core switches ${budget.coreCount}, Edge switches ${budget.edgeCount}, Wi-Fi APs ${budget.apCount}, Firewalls ${budget.firewallCount}.`,
       `User base used for user-priced services: ${budget.userCountLabel} (Students ${budget.studentCountLabel}, Teachers ${budget.teacherCountLabel}).`,
+      "Server backup is treated as local backup in this model.",
     ];
     const acronisPricedItems = [
       `RMM (${budget.deviceCountLabel} devices) x £0.45 = ${formatCurrencyMonthly(budget.acronisRmmMonthly)}`,
@@ -498,7 +499,7 @@ function renderDashboard() {
       `ISPM (${budget.userCountLabel} users) x £0.50 = ${formatCurrencyMonthly(budget.acronisIspmMonthly)}`,
       `Cloud backup (${budget.cloudBackupGbLabel} GB) x £0.10 = ${formatCurrencyMonthly(budget.acronisCloudBackupMonthly)}`,
       `Disaster recovery hot compute (${budget.hotDrComputeGbLabel} GB) x £0.11 = ${formatCurrencyMonthly(budget.acronisHotDrMonthly)}`,
-      `Local backup with Acronis cloud backup = ${formatCurrencyMonthly(budget.acronisLocalBackupMonthly)}`,
+      `Server backup (local backup) with Acronis cloud backup = ${formatCurrencyMonthly(budget.acronisLocalBackupMonthly)}`,
       `Local recovery on local hardware = ${formatCurrencyMonthly(budget.acronisLocalRecoveryMonthly)}`,
       `DLP control cost in this model = £0.00 (covered under A5 path).`,
       `Cloud app protection cost in this model = £0.00 (covered under A5 path).`,
