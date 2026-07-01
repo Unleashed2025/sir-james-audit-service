@@ -2539,6 +2539,16 @@ function exportBudgetWeb() {
 
 async function exportPdf() {
   if (!workbook || !latestReport) return;
+  const printOnlyMode = true;
+  if (printOnlyMode) {
+    const ok = exportPdfPrintFallback(null);
+    if (els.status) {
+      els.status.textContent = ok
+        ? "Opened print view for Save as PDF."
+        : "PDF export failed. Please allow pop-ups or retry after refresh.";
+    }
+    return;
+  }
   let fallbackWindow = null;
   try {
     fallbackWindow = window.open("", "_blank");
